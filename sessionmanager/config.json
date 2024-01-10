@@ -1,0 +1,29 @@
+{
+    "timeout": 10,
+    "take_screenshot_on_error": true,
+    "chrome_options":[
+        "--headless",
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36",
+        "window-size=1920x1080",
+        "--disable-blink-features=AutomationControlled",
+        "--disable-infobars",
+        "--disable-extensions",
+        "--disable-dev-shm-usage",
+        "--no-sandbox"
+    ],
+    "required_cookies": [
+        "XSRF-TOKEN",
+        "__Host-bsid",
+        "JSESSIONID"
+    ],
+    "headers_template": {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.6045.123 Safari/537.36",
+        "Content-Type": "application/json;charset=UTF-8",
+        "sec-ch-ua": "\"Chromium\";v=\"112\", \"Google Chrome\";v=\"112\", \"Not:A-Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "Linux",
+        "DNT": "1",
+        "Accept": "application/json, text/plain, */*",
+        "X-Requested-With": "XMLHttpRequest"
+    }
+}

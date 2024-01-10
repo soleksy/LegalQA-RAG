@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "rag"
+version = "0.1.0"
+description = ""
+authors = ["soleksy <szy.oleksy@gmail.com>"]
+license = "GPL-3.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+datetime = "^5.4"
+python-dotenv = "^1.0.0"
+logging = "^0.4.9.6"
+selenium = "^4.16.0"
+webdriver-manager = "^4.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
