@@ -8,6 +8,7 @@ dotenv.load_dotenv()
 GET_QUESTION_PAYLOAD=os.getenv('GET_QUESTION_PAYLOAD')
 GET_QUESTION_ACTS_RELATIONSHIP_PAYLOAD=os.getenv('GET_QUESTION_ACTS_RELATIONSHIP_PAYLOAD')
 GET_QUESTION_KEYWORDS_PAYLOAD=os.getenv('GET_QUESTION_KEYWORDS_PAYLOAD')
+GET_QUESTION_SEARCH_PAYLOAD=os.getenv('GET_QUESTION_SEARCH_PAYLOAD')
 
 class QuestionPayloads():
     def __init__(self) -> None:
@@ -48,3 +49,23 @@ class QuestionPayloads():
         keywords_payload['pointInTime']=self.date
 
         return keywords_payload
+    
+    def get_question_search_payload(self,start_from:int=0,batch_size:int=25, domains: list[dict] = None) -> dict:
+        '''
+        Returns the payload for a search request for questions and answers within the given domains.
+        '''
+        
+        domains_transformed = []
+        if domains is not None:
+            for dict in domains:
+                for k,v in dict.items():
+                    domains_transformed.append({"label": k, "conceptId":v})
+
+        question_search_payload = json.loads(GET_QUESTION_SEARCH_PAYLOAD)
+
+        question_search_payload['startFrom']=start_from
+        question_search_payload['pointInTime']=self.date
+        question_search_payload['domains']=domains_transformed
+        question_search_payload['hitsPp']=batch_size
+
+        return question_search_payload
