@@ -115,3 +115,11 @@ class ExtractQuestionsBase(ABC):
         For a given list of domains, returns the question numbers from start_from to start_from + batch_size.
         '''
         pass
+
+    @abstractmethod
+    async def _get_question_nros_all(self, domains: list[dict] = None) -> list[int]:
+        '''
+        For a given list of domains, returns all question numbers.
+        It should use get_question_nros_range to get the question numbers in batches.
+        '''
+        pass

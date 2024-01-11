@@ -83,4 +83,29 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
                 for question in data['documentList']:
                     question_nros.append(question['nro'])
             return question_nros
+    
+    @retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(2),
+    retry=(retry_if_exception_type(asyncio.TimeoutError)))
+    async def _get_question_nros_all(self, domains: list[dict] = None) -> list[list[int]]:
+        '''
+        Return the question Id's of questions and answers within the given domains.
+        '''
+        max_hits = await self._get_max_hits(domains=domains)
+        total_calls = max_hits // self.BATCH_SIZE
+        remainder = max_hits % self.BATCH_SIZE
+
+        semaphore = asyncio.Semaphore(20)
+
+        async def limited_search(start_from, batch_size, domains=domains):
+            async with semaphore:
+                return await self._get_question_nros_range(start_from=start_from, batch_size=batch_size, domains=domains)
+
+        tasks = [limited_search(i * self.BATCH_SIZE,
+                                self.BATCH_SIZE if i < total_calls else remainder,domains=domains)
+                 for i in range(total_calls + (1 if remainder else 0))]
         
+        results = await asyncio.gather(*tasks)
+
+        return results
