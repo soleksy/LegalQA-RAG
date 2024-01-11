@@ -14,7 +14,7 @@ class QuestionPayloads():
     def __init__(self) -> None:
         self.date = str(datetime.datetime.now()).split()[0]
     
-    def get_question_payload(self, question_nro: int) -> dict:
+    def _get_question_payload(self, question_nro: int) -> dict:
         '''
         Returns the payload for a single question and answer request.
         '''
@@ -26,7 +26,7 @@ class QuestionPayloads():
 
         return qa_payload
     
-    def get_question_acts_payload(self, question_nro: int) -> dict:
+    def _get_question_acts_payload(self, question_nro: int) -> dict:
         '''
         Return the payload for a single question related acts.
         '''
@@ -38,7 +38,7 @@ class QuestionPayloads():
 
         return qa_relationship_payload
     
-    def get_question_keywords_payload(self, question_id: int)-> dict:
+    def _get_question_keywords_payload(self, question_id: int)-> dict:
         '''
         Returns the payload for a single question related keywords.
         '''
@@ -50,7 +50,7 @@ class QuestionPayloads():
 
         return keywords_payload
     
-    def get_question_search_payload(self,start_from:int=0,batch_size:int=25, domains: list[dict] = None) -> dict:
+    def _get_question_search_payload(self,start_from:int=0,batch_size:int=25, domains: list[dict] = None) -> dict:
         '''
         Returns the payload for a search request for questions and answers within the given domains.
         '''

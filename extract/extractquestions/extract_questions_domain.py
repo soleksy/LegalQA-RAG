@@ -39,7 +39,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         '''
 
         async with aiohttp.ClientSession(headers=self.sessionManager.get_headers(), cookies=self.sessionManager.get_cookies(), connector=aiohttp.TCPConnector(ssl=False), timeout=self.TIMEOUT) as session:
-            search_payload = self.payloads.get_question_search_payload(domains=domains)
+            search_payload = self.payloads._get_question_search_payload(domains=domains)
             try:
                 response = await session.post(self.REQUEST_URL, json=search_payload, timeout=self.TIMEOUT)
             except asyncio.TimeoutError:
@@ -63,7 +63,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         '''
 
         async with aiohttp.ClientSession(headers=self.sessionManager.get_headers(), cookies=self.sessionManager.get_cookies(), connector=aiohttp.TCPConnector(ssl=False), timeout=self.TIMEOUT) as session:
-            search_payload = self.payloads.get_question_search_payload(start_from=start_from,batch_size=batch_size,domains=domains)
+            search_payload = self.payloads._get_question_search_payload(start_from=start_from,batch_size=batch_size,domains=domains)
 
             question_nros = []
 
@@ -109,3 +109,27 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         results = await asyncio.gather(*tasks)
 
         return results
+    
+    @retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(2),
+    retry=(retry_if_exception_type(asyncio.TimeoutError)))
+    async def get_complete_question(self, question_nro: int) -> dict:
+        '''
+        For a given question_nro, returns the question data, acts and keywords associated with the question.
+        '''
+        question = await self.get_question(question_nro)
+        question_id = question['id']
+
+        results = await asyncio.gather(self.get_question_acts(question_nro), self.get_question_keywords(question_id))
+
+        acts = results[0]
+        keywords = results[1]
+
+        complete_question = {
+            "question": question,
+            "acts": acts,
+            "keywords": keywords
+        }
+
+        return complete_question

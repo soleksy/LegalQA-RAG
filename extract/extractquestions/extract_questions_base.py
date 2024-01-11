@@ -33,7 +33,7 @@ class ExtractQuestionsBase(ABC):
         For a given question_nro, returns the question data.
         '''
 
-        qa_payload = self.payloads.get_question_payload(question_nro)
+        qa_payload = self.payloads._get_question_payload(question_nro)
         request_url = GET_QUESTION_URL
         
         try:
@@ -56,7 +56,7 @@ class ExtractQuestionsBase(ABC):
         '''
 
         url = GET_QUESTION_ACTS_URL
-        payload = self.payloads.get_question_acts_payload(question_nro)
+        payload = self.payloads._get_question_acts_payload(question_nro)
 
         async with aiohttp.ClientSession(headers=self.sessionManager.get_headers(), cookies=self.sessionManager.get_cookies(), connector=aiohttp.TCPConnector(ssl=False), timeout=self.TIMEOUT) as session:
             try:
@@ -83,7 +83,7 @@ class ExtractQuestionsBase(ABC):
         For a given question_id, returns the keywords associated with the question.
         '''
 
-        payload = self.payloads.get_question_keywords_payload(question_id)
+        payload = self.payloads._get_question_keywords_payload(question_id)
         url = GET_QUESTION_KEYWORDS_URL
 
         async with aiohttp.ClientSession(headers=self.sessionManager.get_headers(), cookies=self.sessionManager.get_cookies(), connector=aiohttp.TCPConnector(ssl=False), timeout=self.TIMEOUT) as session:
@@ -101,7 +101,15 @@ class ExtractQuestionsBase(ABC):
             except Exception as e:
                 print(f"Exception: {e}")
                 return None
-            
+    
+    @abstractmethod
+    async def get_complete_question(self, question_nro: int) -> dict:
+        '''
+        For given question number, return the accociated question, acts and keywords.
+        Should use get_question, get_question_acts and get_question_keywords.
+        '''
+        pass
+
     @abstractmethod
     async def _get_max_hits(self, domains: list[dict] = None) -> int:
         '''
