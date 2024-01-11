@@ -1,10 +1,12 @@
 
 import os
+import tqdm
 import json
 import dotenv
 import asyncio
 import aiohttp
 import logging
+import datetime
 
 from aiohttp import ClientTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
@@ -131,3 +133,57 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         complete_question = self.parser.parse_question_data(question, acts, keywords)
 
         return complete_question
+    
+
+    async def get_all_questions(self, domains:list[dict] = None, file: str = None) -> dict or None:
+        '''
+        Retrieve all questions, associated keywords and acts from the given domains or from every domain if None.
+        '''
+        question_tasks = []
+        
+        results = await self._get_question_nros_all(domains=domains)
+
+        for result in results:
+            question_tasks.append([self.get_complete_question(question_nro=nro) for nro in result])
+
+        final_results = {
+            'date': str(datetime.datetime.now()).split()[0],
+            'questions': {}
+            }
+        
+        for qa_task in tqdm.tqdm(question_tasks):
+            qa_results = await asyncio.gather(*qa_task)
+            for qa_result in qa_results:
+                if qa_result is not None:
+                    final_results['questions'][qa_result['nro']]=qa_result
+
+        print(f"Retrieved {len(final_results['questions'])} questions and answers.")
+
+        if len(final_results['questions']) == 0:
+            return None
+        
+        elif file is not None:
+            if os.path.exists(file):
+                with open(file, 'r') as outfile:
+                    data = json.load(outfile)
+                    outfile.close()
+
+                    for question in final_results['questions']:
+                        data['questions'][question] = final_results['questions'][question]
+                        
+                with open(file, 'w') as outfile:
+                    json.dump(data, outfile, indent=4, ensure_ascii=False)
+                    outfile.close()
+
+                data.clear()
+                final_results.clear()
+
+                return None
+            else:
+                with open(file, 'w') as outfile:
+                    json.dump(final_results, outfile, indent=4, ensure_ascii=False)
+                    outfile.close()
+                    
+                return None
+        else:
+            return final_results

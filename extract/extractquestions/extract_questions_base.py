@@ -131,3 +131,11 @@ class ExtractQuestionsBase(ABC):
         It should use get_question_nros_range to get the question numbers in batches.
         '''
         pass
+    @abstractmethod
+    async def get_all_questions(self, domains:list[dict] = None, file: str = None) -> dict or None:
+        '''
+        Given domains, use get_question_nros_all to get all question numbers.
+        Then use get_complete_question to get the question data for each question number.
+        If file is not None, save the results to a file else return the results.
+        '''
+        pass
