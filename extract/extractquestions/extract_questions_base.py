@@ -3,7 +3,7 @@ import dotenv
 import aiohttp
 import asyncio
 
-from abc import ABC
+from abc import ABC , abstractmethod
 from aiohttp import ClientTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
@@ -101,3 +101,17 @@ class ExtractQuestionsBase(ABC):
             except Exception as e:
                 print(f"Exception: {e}")
                 return None
+            
+    @abstractmethod
+    async def _get_max_hits(self, domains: list[dict] = None) -> int:
+        '''
+        For a given list of domains, returns the total number of questions within those domains.
+        '''
+        pass
+
+    @abstractmethod
+    async def _get_question_nros_range(self, start_from: int = 0, batch_size: int = 25 , domains: list[dict] = None) -> list[int]:
+        '''
+        For a given list of domains, returns the question numbers from start_from to start_from + batch_size.
+        '''
+        pass

@@ -33,7 +33,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
     stop=stop_after_attempt(3),
     wait=wait_fixed(2),
     retry=(retry_if_exception_type(asyncio.TimeoutError)))
-    async def get_max_hits(self, domains: list[dict] = None) -> int:
+    async def _get_max_hits(self, domains: list[dict] = None) -> int:
         '''
         Return the total number of questions and answers within the given domains.
         '''
@@ -52,3 +52,35 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
                 return None
             else:
                 return data['availableHitCount']
+
+    @retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(2),
+    retry=(retry_if_exception_type(asyncio.TimeoutError)))
+    async def _get_question_nros_range(self, start_from: int = 0, batch_size: int = 25, domains:list[dict] = None)-> list[int]:
+        '''
+        Return the question Id's of questions within the given domains from range start_from to start_from+batch_size.
+        '''
+
+        async with aiohttp.ClientSession(headers=self.sessionManager.get_headers(), cookies=self.sessionManager.get_cookies(), connector=aiohttp.TCPConnector(ssl=False), timeout=self.TIMEOUT) as session:
+            search_payload = self.payloads.get_question_search_payload(start_from=start_from,batch_size=batch_size,domains=domains)
+
+            question_nros = []
+
+            try:
+                response = await session.post(self.REQUEST_URL, json=search_payload, timeout=self.TIMEOUT)
+            except asyncio.TimeoutError:
+                logging.warning(f"Request nro timed out. Continuing with the next request.")
+                return []
+
+            data = await response.json()
+
+            if data.get('documentList') is None:
+                logging.warning('No documentList in response. Continuing with the next request.')
+                logging.debug(data)
+                return []
+            else:
+                for question in data['documentList']:
+                    question_nros.append(question['nro'])
+            return question_nros
+        
