@@ -11,6 +11,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_t
 
 from sessionmanager.session_manager import SessionManager
 from extract.extractquestions.question_payloads import QuestionPayloads
+from extract.extractquestions.question_parser import QuestionParser
 from extract.extractquestions.extract_questions_base import ExtractQuestionsBase
 
 dotenv.load_dotenv()
@@ -26,6 +27,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         self.sessionManager = sessionManager
         self.domains = json.loads(DOMAINS)
         self.payloads = QuestionPayloads()
+        self.parser = QuestionParser()
 
         super().__init__(sessionManager)
     
@@ -126,10 +128,6 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         acts = results[0]
         keywords = results[1]
 
-        complete_question = {
-            "question": question,
-            "acts": acts,
-            "keywords": keywords
-        }
+        complete_question = self.parser.parse_question_data(question, acts, keywords)
 
         return complete_question

@@ -16,6 +16,7 @@ webdriver-manager = "^4.0.1"
 aiohttp = "^3.9.1"
 asyncio = "^3.4.3"
 tenacity = "^8.2.3"
+bs4 = "^0.0.1"
 
 
 [build-system]
