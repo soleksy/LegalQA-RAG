@@ -15,6 +15,8 @@ from etl.extract.extractquestions.question_payloads import QuestionPayloads
 from etl.extract.extractquestions.question_parser import QuestionParser
 from etl.extract.extractquestions.extract_questions_base import ExtractQuestionsBase
 
+from etl.common.question_index import QuestionIndex
+
 dotenv.load_dotenv()
 DOMAINS = os.getenv('DOMAINS')
 GET_REQUEST_URL = os.getenv('GET_REQUEST_URL')
@@ -30,6 +32,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         self.sessionManager = sessionManager
         self.payloads = QuestionPayloads()
         self.parser = QuestionParser()
+        self.index = QuestionIndex()
 
         super().__init__(sessionManager)
     
@@ -112,7 +115,13 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         
         results = await asyncio.gather(*tasks)
 
-        return results
+        nro_list=[item for sublist in results for item in sublist]
+
+        missing_nros = self.index._find_missing_nros(nro_list=nro_list,domains=domains , batch_size=self.BATCH_SIZE)
+        
+        self.index._update_raw_questions_index(nro_list=nro_list,domains=domains)
+        
+        return missing_nros
     
     @retry(
     stop=stop_after_attempt(3),
@@ -135,7 +144,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         return complete_question
     
 
-    async def get_all_questions(self, domains:list[dict] = None, file: str = None) -> dict or None:
+    async def get_all_questions(self, domains:list[dict] = None) -> dict or None:
         '''
         Retrieve all questions, associated keywords and acts from the given domains or from every domain if None.
         '''
@@ -146,44 +155,18 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         for result in results:
             question_tasks.append([self.get_complete_question(question_nro=nro) for nro in result])
 
-        final_results = {
-            'date': str(datetime.datetime.now()).split()[0],
-            'questions': {}
-            }
+        questions = []
         
         for qa_task in tqdm.tqdm(question_tasks):
             qa_results = await asyncio.gather(*qa_task)
             for qa_result in qa_results:
                 if qa_result is not None:
-                    final_results['questions'][qa_result['nro']]=qa_result
-
-        print(f"Retrieved {len(final_results['questions'])} questions and answers.")
-
-        if len(final_results['questions']) == 0:
-            return None
-        
-        elif file is not None:
-            if os.path.exists(file):
-                with open(file, 'r') as outfile:
-                    data = json.load(outfile)
-                    outfile.close()
-
-                    for question in final_results['questions']:
-                        data['questions'][question] = final_results['questions'][question]
-                        
-                with open(file, 'w') as outfile:
-                    json.dump(data, outfile, indent=4, ensure_ascii=False)
-                    outfile.close()
-
-                data.clear()
-                final_results.clear()
-
-                return None
-            else:
-                with open(file, 'w') as outfile:
-                    json.dump(final_results, outfile, indent=4, ensure_ascii=False)
-                    outfile.close()
+                    questions.append(qa_result)
                     
-                return None
+        print(f"Retrieved {len(questions)} questions and answers.")
+
+        if len(questions) == 0:
+            return None
         else:
-            return final_results
+            self.index._update_raw_questions_data(questions=questions,domains=domains)
+        
