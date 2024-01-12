@@ -8,7 +8,7 @@ from aiohttp import ClientTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 from sessionmanager.session_manager import SessionManager
-from extract.extractquestions.question_payloads import QuestionPayloads
+from etl.extract.extractquestions.question_payloads import QuestionPayloads
 
 dotenv.load_dotenv()
 GET_QUESTION_URL = os.getenv('GET_QUESTION_URL')

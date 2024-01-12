@@ -1,3 +1,9 @@
+import os
+import json
+import dotenv
+import logging
+import datetime
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -7,11 +13,6 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-import datetime
-import logging
-import json
-import os
-import dotenv
 
 dotenv.load_dotenv()
 LOGIN_URL=os.getenv('LOGIN_URL')

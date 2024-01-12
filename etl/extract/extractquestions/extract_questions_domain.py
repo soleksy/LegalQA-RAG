@@ -1,4 +1,3 @@
-
 import os
 import tqdm
 import json
@@ -12,9 +11,9 @@ from aiohttp import ClientTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 from sessionmanager.session_manager import SessionManager
-from extract.extractquestions.question_payloads import QuestionPayloads
-from extract.extractquestions.question_parser import QuestionParser
-from extract.extractquestions.extract_questions_base import ExtractQuestionsBase
+from etl.extract.extractquestions.question_payloads import QuestionPayloads
+from etl.extract.extractquestions.question_parser import QuestionParser
+from etl.extract.extractquestions.extract_questions_base import ExtractQuestionsBase
 
 dotenv.load_dotenv()
 DOMAINS = os.getenv('DOMAINS')
@@ -23,11 +22,12 @@ GET_REQUEST_URL = os.getenv('GET_REQUEST_URL')
 
 class ExtractQuestionsDomain(ExtractQuestionsBase):
     def __init__(self, sessionManager: SessionManager):
-        self.TIMEOUT = ClientTimeout(total=25)
         self.BATCH_SIZE = 25
         self.REQUEST_URL = GET_REQUEST_URL
-        self.sessionManager = sessionManager
+        self.TIMEOUT = ClientTimeout(total=25)
         self.domains = json.loads(DOMAINS)
+
+        self.sessionManager = sessionManager
         self.payloads = QuestionPayloads()
         self.parser = QuestionParser()
 
