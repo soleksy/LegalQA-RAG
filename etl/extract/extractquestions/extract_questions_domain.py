@@ -117,7 +117,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
 
         nro_list=[item for sublist in results for item in sublist]
 
-        missing_nros = self.index._find_missing_nros(nro_list=nro_list,domains=domains , batch_size=self.BATCH_SIZE)
+        missing_nros = self.index._find_missing_nros(nro_list=nro_list,batch_size=self.BATCH_SIZE,domains=domains )
         
         self.index._update_raw_questions_index(nro_list=nro_list,domains=domains)
         
@@ -144,7 +144,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         return complete_question
     
 
-    async def get_all_questions(self, domains:list[dict] = None) -> dict or None:
+    async def get_all_questions(self, domains:list[dict] = None) -> list[str]:
         '''
         Retrieve all questions, associated keywords and acts from the given domains or from every domain if None.
         '''
@@ -164,9 +164,10 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
                     questions.append(qa_result)
                     
         print(f"Retrieved {len(questions)} questions and answers.")
-
+        
         if len(questions) == 0:
-            return None
+            return []
         else:
-            self.index._update_raw_questions_data(questions=questions,domains=domains)
+            result_nros = self.index._update_raw_questions_data(questions=questions,domains=domains)
+        return result_nros
         
