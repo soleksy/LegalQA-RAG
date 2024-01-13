@@ -39,10 +39,11 @@ class TransformedQuestionIndex(Index):
         '''
 
         file_name = self._get_filename_index_transformed(domains=domains)
+        file_path = self.transformed_questions_index_path+file_name
 
-        if os.path.exists(self.transformed_questions_index_path+file_name):
-            with open(self.transformed_questions_index_path+file_name) as f:
-                index = json.load(f)
+        if os.path.exists(file_path):
+
+            index = self._read_json_file(file_path)
 
             missing = list(set(nro_list).difference(set(index)))
 
@@ -60,18 +61,16 @@ class TransformedQuestionIndex(Index):
         '''
 
         file_name = self._get_filename_index_transformed(domains=domains)
+        file_path = self.transformed_questions_index_path+file_name
 
-        if os.path.exists(self.transformed_questions_index_path+file_name):
-            with open(self.transformed_questions_index_path+file_name) as f:
-                index = json.load(f)
+        if os.path.exists(file_path):
+            index = self._read_json_file(file_path)
 
             nro_list = list(set(nro_list + index))
 
-            with open(self.transformed_questions_index_path+file_name, 'w') as f:
-                json.dump(nro_list, f , indent=4 , ensure_ascii=False)
+            self._write_json_file(file_path, nro_list)
         else:
-            with open(self.transformed_questions_index_path+file_name, 'w') as f:
-                json.dump(nro_list, f , indent=4 , ensure_ascii=False)
+            self._write_json_file(file_path, nro_list)
 
     def _update_questions_data_transformed(self, questions: list[dict] , domains: list[dict] = None) -> list[str]:
         '''
@@ -80,10 +79,11 @@ class TransformedQuestionIndex(Index):
 
         file_name = self._get_filename_data_transformed(domains=domains)
         result_nros = []
+        
+        file_path = self.transformed_questions_data_path+file_name
 
-        if os.path.exists(self.transformed_questions_data_path+file_name):
-            with open(self.transformed_questions_data_path+file_name) as f:
-                data = json.load(f)
+        if os.path.exists(file_path):
+            data = self._read_json_file(file_path)
 
             question_keys = set(data['questions'].keys())
 
@@ -94,12 +94,10 @@ class TransformedQuestionIndex(Index):
                 else:
                     logging.warning(f"Question with nro {question['nro']} already exists in data file.")
 
-            with open(self.transformed_questions_data_path+file_name, 'w') as f:
-                json.dump(data, f , indent=4 , ensure_ascii=False)
+            self._write_json_file(file_path, data)
         else:
-            with open(self.transformed_questions_data_path+file_name, 'w') as f:
-                result_nros = [str(question['nro']) for question in questions]
-                json.dump({'last_update': str(datetime.datetime.now()).split()[0], 'questions': {question['nro']: question for question in questions}}, f , indent=4 , ensure_ascii=False)
+            result_nros = [str(question['nro']) for question in questions]
+            self._write_json_file(file_path, {'last_update': str(datetime.datetime.now()).split()[0], 'questions': {question['nro']: question for question in questions}})
 
         return result_nros
     
@@ -111,12 +109,13 @@ class TransformedQuestionIndex(Index):
         file_name_index = self._get_filename_index_transformed(domains=domains)
         file_name_data = self._get_filename_data_transformed(domains=domains)
 
-        if os.path.exists(self.transformed_questions_index_path+file_name_index) and os.path.exists(self.transformed_questions_data_path+file_name_data):
-            with open(self.transformed_questions_index_path+file_name_index) as f:
-                index_question_nros = json.load(f)
+        file_path_index = self.transformed_questions_index_path+file_name_index
+        file_path_data = self.transformed_questions_data_path+file_name_data
 
-            with open(self.transformed_questions_data_path+file_name_data) as f:
-                data_question_nros = json.load(f)
+        if os.path.exists(file_path_index) and os.path.exists(file_path_data):
+
+            index_question_nros = self._read_json_file(file_path_index)
+            data_question_nros = self._read_json_file(file_path_data)
 
             if set([str(index) for index in index_question_nros ]) == set(data_question_nros['questions'].keys()):
                 return True

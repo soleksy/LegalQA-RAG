@@ -15,7 +15,7 @@ from etl.extract.extractquestions.question_payloads import QuestionPayloads
 from etl.extract.extractquestions.question_parser import QuestionParser
 from etl.extract.extractquestions.extract_questions_base import ExtractQuestionsBase
 
-from etl.common.question_index import QuestionIndex
+from etl.common.raw_question_index import RawQuestionIndex
 
 dotenv.load_dotenv()
 DOMAINS = os.getenv('DOMAINS')
@@ -32,7 +32,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         self.sessionManager = sessionManager
         self.payloads = QuestionPayloads()
         self.parser = QuestionParser()
-        self.index = QuestionIndex()
+        self.index = RawQuestionIndex()
 
         super().__init__(sessionManager)
     
