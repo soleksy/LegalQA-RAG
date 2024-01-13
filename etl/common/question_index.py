@@ -10,8 +10,11 @@ class QuestionIndex(Index):
         self.raw_questions_index_path = self.config['raw_questions_index']
         self.raw_questions_data_path = self.config['raw_questions_data']
 
+        self.transformed_questions_index_path = self.config['transformed_questions_index']
+        self.transformed_questions_data_path = self.config['transformed_questions_data']
 
-    def _get_filename_index(self, domains: list[dict] = None) -> str:
+
+    def _get_filename_index_raw(self, domains: list[dict] = None) -> str:
         '''
         Given a list of domains, return the filename of the index file.
         '''
@@ -21,7 +24,7 @@ class QuestionIndex(Index):
         else:
             return 'all_index.json'
     
-    def _get_filename_data(self, domains: list[dict] = None) -> str:
+    def _get_filename_data_raw(self, domains: list[dict] = None) -> str:
         '''
         Given a list of domains, return the filename of the data file.
         '''
@@ -32,12 +35,12 @@ class QuestionIndex(Index):
             return 'all_data.json'
         
 
-    def _find_missing_nros(self, nro_list: list[int] ,batch_size , domains: list[dict] = None) -> bool:
+    def _find_missing_nros_raw(self, nro_list: list[int] ,batch_size , domains: list[dict] = None) -> bool:
         '''
         Given a list of question_nros, check if the index of raw questions exists and return only not indexed nros.
         '''
 
-        file_name = self._get_filename_index(domains=domains)
+        file_name = self._get_filename_index_raw(domains=domains)
 
         if os.path.exists(self.raw_questions_index_path+file_name):
             with open(self.raw_questions_index_path+file_name) as f:
@@ -54,12 +57,12 @@ class QuestionIndex(Index):
         else:
             return [nro_list[i:i + batch_size] for i in range(0, len(nro_list), batch_size)]
         
-    def _update_raw_questions_index(self, nro_list: list[int] , domains: list[dict] = None) -> None:
+    def _update_questions_index_raw(self, nro_list: list[int] , domains: list[dict] = None) -> None:
         '''
         Given a list of question_nros, create or update the index of raw questions.
         '''
 
-        file_name = self._get_filename_index(domains=domains)
+        file_name = self._get_filename_index_raw(domains=domains)
 
         if os.path.exists(self.raw_questions_index_path+file_name):
             with open(self.raw_questions_index_path+file_name) as f:
@@ -73,12 +76,12 @@ class QuestionIndex(Index):
             with open(self.raw_questions_index_path+file_name, 'w') as f:
                 json.dump(nro_list, f , indent=4 , ensure_ascii=False)
 
-    def _update_raw_questions_data(self, questions: list[dict] , domains: list[dict] = None) -> list[str]:
+    def _update_questions_data_raw(self, questions: list[dict] , domains: list[dict] = None) -> list[str]:
         '''
         Given a list of questions, create or update the raw questions data.
         '''
 
-        file_name = self._get_filename_data(domains=domains)
+        file_name = self._get_filename_data_raw(domains=domains)
         result_nros = []
 
         if os.path.exists(self.raw_questions_data_path+file_name):
@@ -103,13 +106,13 @@ class QuestionIndex(Index):
 
         return result_nros
 
-    def _validate_index(self, domains: list[dict] = None) -> bool:
+    def _validate_raw_index(self, domains: list[dict] = None) -> bool:
         '''
         Given a list of domains, check if the set of question_nros in the index is equal to the set of question_nros in the data.
         '''
 
-        file_name_index = self._get_filename_index(domains=domains)
-        file_name_data = self._get_filename_data(domains=domains)
+        file_name_index = self._get_filename_index_raw(domains=domains)
+        file_name_data = self._get_filename_data_raw(domains=domains)
 
         if os.path.exists(self.raw_questions_index_path+file_name_index) and os.path.exists(self.raw_questions_data_path+file_name_data):
             with open(self.raw_questions_index_path+file_name_index) as f:

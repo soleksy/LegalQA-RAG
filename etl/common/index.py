@@ -8,3 +8,6 @@ class Index():
 
         self.raw_questions_index_path = self.config['raw_questions_index']
         self.raw_questions_data_path = self.config['raw_questions_data']
+
+        self.transformed_questions_index_path = self.config['transformed_questions_index']
+        self.transformed_questions_data_path = self.config['transformed_questions_data']
