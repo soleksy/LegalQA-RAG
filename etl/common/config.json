@@ -1,4 +1,7 @@
 {
     "raw_questions_index": "data/raw/index/questions/",
-    "raw_questions_data": "data/raw/questions/"
+    "raw_questions_data": "data/raw/questions/",
+
+    "transformed_questions_index": "data/transformed/index/questions/",
+    "transformed_questions_data": "data/transformed/questions/"
 }
