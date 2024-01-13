@@ -1,26 +1,24 @@
 import os
 import json
+import logging
 import datetime
 
 from etl.common.index import Index
 
-class QuestionIndex(Index):
+class RawQuestionIndex(Index):
     def __init__(self) -> None:
         super().__init__()
         self.raw_questions_index_path = self.config['raw_questions_index']
         self.raw_questions_data_path = self.config['raw_questions_data']
 
-        self.transformed_questions_index_path = self.config['transformed_questions_index']
-        self.transformed_questions_data_path = self.config['transformed_questions_data']
-
-
+    
     def _get_filename_index_raw(self, domains: list[dict] = None) -> str:
         '''
         Given a list of domains, return the filename of the index file.
         '''
 
         if domains is not None:
-            return '_'.join(str(list(d.values())[0]) for d in domains) + '_index.json'
+            return '_'.join(str(list(d.values())[0]) for d in domains) + '_raw_index.json'
         else:
             return 'all_index.json'
     
@@ -30,12 +28,12 @@ class QuestionIndex(Index):
         '''
 
         if domains is not None:
-            return '_'.join(str(list(d.values())[0]) for d in domains) + '_data.json'
+            return '_'.join(str(list(d.values())[0]) for d in domains) + '_raw_data.json'
         else:
             return 'all_data.json'
         
 
-    def _find_missing_nros_raw(self, nro_list: list[int] ,batch_size , domains: list[dict] = None) -> bool:
+    def _find_missing_nros_raw(self, nro_list: list[int] ,batch_size , domains: list[dict] = None) -> list[int]:
         '''
         Given a list of question_nros, check if the index of raw questions exists and return only not indexed nros.
         '''
@@ -50,7 +48,6 @@ class QuestionIndex(Index):
 
             if len(missing) > 0:
                 missing = [missing[i:i + batch_size] for i in range(0, len(missing), batch_size)]
-                print(missing)
                 return missing
             else:
                 return []
@@ -95,7 +92,7 @@ class QuestionIndex(Index):
                     result_nros.append(question['nro'])
                     data['questions'][question['nro']] = question
                 else:
-                    print(f"Question with nro {question['nro']} already exists in data file.")
+                    logging.warning(f"Question with nro {question['nro']} already exists in data file.")
 
             with open(self.raw_questions_data_path+file_name, 'w') as f:
                 json.dump(data, f , indent=4 , ensure_ascii=False)
