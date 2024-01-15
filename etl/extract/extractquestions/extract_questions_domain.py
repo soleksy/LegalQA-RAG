@@ -5,7 +5,6 @@ import dotenv
 import asyncio
 import aiohttp
 import logging
-import datetime
 
 from aiohttp import ClientTimeout
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
@@ -103,7 +102,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         total_calls = max_hits // self.BATCH_SIZE
         remainder = max_hits % self.BATCH_SIZE
 
-        semaphore = asyncio.Semaphore(20)
+        semaphore = asyncio.Semaphore(60)
 
         async def limited_search(start_from, batch_size, domains=domains):
             async with semaphore:

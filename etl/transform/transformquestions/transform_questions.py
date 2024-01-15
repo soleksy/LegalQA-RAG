@@ -1,7 +1,9 @@
 import os
 import dotenv
+import asyncio
+import aiohttp
+import logging
 import datetime
-import requests
 
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
@@ -58,29 +60,28 @@ class TransformQuestions():
     @retry(
     stop=stop_after_attempt(3),
     wait=wait_fixed(2),
-    retry=(retry_if_exception_type(Exception)))
-    def _is_parsable(self, nro: int) -> bool:
+    retry=(retry_if_exception_type(asyncio.TimeoutError)))
+    async def _is_parsable(self, nro: int) -> bool:
         '''
         Returns True if the act is parsable, False otherwise.
         '''
         date = str(datetime.datetime.now()).split()[0]
-
         request_url = f'{UNITS_BASE_URL}?nro={nro}&pointInTime={date}'
 
-        try:
-            response = requests.get(request_url,
-                                    headers=self.sessionManager.get_headers(),
-                                    cookies=self.sessionManager.get_cookies())
-        except Exception as e:
-            print(f"Exception: {e}, {nro}")
-        data = response.json()
+        async with aiohttp.ClientSession(headers=self.sessionManager.get_headers(), cookies=self.sessionManager.get_cookies(), connector=aiohttp.TCPConnector(ssl=False)) as session:
+            try:
+                response = await session.get(request_url)
+            except asyncio.TimeoutError:
+                logging.warning(f"Request for parsability timed out. Continuing with the next request.")
+                return False
+            data = await response.json()
 
-        if 'units' not in data.keys():
-            return False
-        else:
-            return True
+            if 'units' not in data.keys():
+                return False
+            else:
+                return True
         
-    def _transform_questions(self, question_nros: list[str], domains: list[dict] = None) -> list[Question]:
+    async def _transform_questions(self, question_nros: list[str], domains: list[dict] = None) -> list[Question]:
 
         question_nros = self._find_not_indexed_questions(question_nros=question_nros, domains=domains)
         
@@ -90,14 +91,19 @@ class TransformQuestions():
         parsable = set()
         unparsable = set()
 
-        related_acts = set([relatedAct.nro for question in questions_to_transform for relatedAct in question.relatedActs])
+        related_acts = list(set([relatedAct.nro for question in questions_to_transform for relatedAct in question.relatedActs]))
+        related_acts = [related_acts[i:i + 25] for i in range(0, len(related_acts), 25)]
+        
+        tasks = [[self._is_parsable(nro) for nro in sublist] for sublist in related_acts]
 
-        for nro in related_acts:
-            if nro not in parsable and nro not in unparsable:
-                if self._is_parsable(nro):
-                    parsable.add(nro)
-                else:
-                    unparsable.add(nro)
+        for n , task in enumerate(tasks):
+            results = await asyncio.gather(*task)
+            for result, nro in zip(results, related_acts[n]):
+                if nro not in parsable and nro not in unparsable:
+                    if result:
+                        parsable.add(nro)
+                    else:
+                        unparsable.add(nro)
 
         transformed_questions = []
         for question in questions_to_transform:
