@@ -18,6 +18,8 @@ asyncio = "^3.4.3"
 tenacity = "^8.2.3"
 bs4 = "^0.0.1"
 tqdm = "^4.66.1"
+pydantic = "^2.5.3"
+requests = "^2.31.0"
 
 
 [build-system]
