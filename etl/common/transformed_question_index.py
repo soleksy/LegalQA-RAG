@@ -9,9 +9,6 @@ class TransformedQuestionIndex(Index):
     def __init__(self) -> None:
         super().__init__()
 
-        self.transformed_questions_index_path = self.config['transformed_questions_index']
-        self.transformed_questions_data_path = self.config['transformed_questions_data']
-
     def _get_filename_index_transformed(self, domains: list[dict] = None) -> str:
         '''
         Given a list of domains, return the filename of the index file.
@@ -32,8 +29,7 @@ class TransformedQuestionIndex(Index):
         else:
             return 'all_transformed_data.json'
         
-
-    def _find_missing_nros_transformed(self, nro_list: list[int] ,batch_size , domains: list[dict] = None) -> list[int]:
+    def _find_missing_nros_transformed(self, nro_list: list[str], domains: list[dict] = None) -> list[str]:
         '''
         Given a list of question_nros, check if the index of transformed questions exists and return only not indexed nros.
         '''
@@ -44,22 +40,24 @@ class TransformedQuestionIndex(Index):
         if os.path.exists(file_path):
 
             index = self._read_json_file(file_path)
+            index = [str(nro) for nro in index]
 
             missing = list(set(nro_list).difference(set(index)))
 
             if len(missing) > 0:
-                missing = [missing[i:i + batch_size] for i in range(0, len(missing), batch_size)]
                 return missing
             else:
                 return []
         else:
-            return [nro_list[i:i + batch_size] for i in range(0, len(nro_list), batch_size)]
+            return nro_list
     
-    def _update_questions_index_transformed(self, nro_list: list[int] , domains: list[dict] = None) -> None:
+    def _update_questions_index_transformed(self, nro_list: list[str] , domains: list[dict] = None) -> None:
         '''
         Given a list of question_nros, create or update the index of transformed questions.
         '''
 
+        nro_list = [int(nro) for nro in nro_list]
+        
         file_name = self._get_filename_index_transformed(domains=domains)
         file_path = self.transformed_questions_index_path+file_name
 

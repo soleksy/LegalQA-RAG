@@ -147,6 +147,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
     async def get_all_questions(self, domains:list[dict] = None) -> list[str]:
         '''
         Retrieve all questions, associated keywords and acts from the given domains or from every domain if None.
+        Returns a list of question_nros that were successfully retrieved and indexed.
         '''
         question_tasks = []
         
@@ -162,8 +163,6 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
             for qa_result in qa_results:
                 if qa_result is not None:
                     questions.append(qa_result)
-                    
-        print(f"Retrieved {len(questions)} questions and answers.")
         
         if len(questions) == 0:
             return []

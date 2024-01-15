@@ -8,9 +8,6 @@ from etl.common.index import Index
 class RawQuestionIndex(Index):
     def __init__(self) -> None:
         super().__init__()
-        self.raw_questions_index_path = self.config['raw_questions_index']
-        self.raw_questions_data_path = self.config['raw_questions_data']
-
     
     def _get_filename_index_raw(self, domains: list[dict] = None) -> str:
         '''
@@ -33,7 +30,7 @@ class RawQuestionIndex(Index):
             return 'all_data.json'
         
 
-    def _find_missing_nros_raw(self, nro_list: list[int] ,batch_size , domains: list[dict] = None) -> list[int]:
+    def _find_missing_nros_raw(self, nro_list: list[int] ,batch_size , domains: list[dict] = None) -> list[list[int]]:
         '''
         Given a list of question_nros, check if the index of raw questions exists and return only not indexed nros.
         '''
@@ -64,7 +61,7 @@ class RawQuestionIndex(Index):
         file_path = self.raw_questions_index_path+file_name
 
         if os.path.exists(file_path):
-            index = self.read_json_file(file_path)
+            index = self._read_json_file(file_path)
 
             nro_list = list(set(nro_list + index))
 
@@ -89,7 +86,7 @@ class RawQuestionIndex(Index):
 
             for question in questions:
                 if str(question['nro']) not in question_keys:
-                    result_nros.append(question['nro'])
+                    result_nros.append(str(question['nro']))
                     data['questions'][question['nro']] = question
                 else:
                     logging.warning(f"Question with nro {question['nro']} already exists in data file.")
