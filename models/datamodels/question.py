@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel , validator
 
 class RelatedKeyword(BaseModel):
     label: str
@@ -15,10 +15,14 @@ class RelatedAct(BaseModel):
     nro: int
     title: str
     validity: str
-    relationData: Optional[List[CitationData]] = None
+    relationData: Optional[List[CitationData]] = []
 
 class Question(BaseModel):
     nro: int
     title: str
-    relatedActs: List[RelatedAct]
-    relatedKeywords: List[RelatedKeyword]
+    relatedActs: Optional[List[RelatedAct]] = []
+    keywords: Optional[List[RelatedKeyword]] = []
+
+    @validator('relatedActs', 'keywords', pre=True, always=True)
+    def set_none_to_empty_list(cls, v):
+        return [] if v is None else v
