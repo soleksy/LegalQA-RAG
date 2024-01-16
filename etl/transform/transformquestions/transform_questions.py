@@ -8,8 +8,8 @@ import datetime
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 from sessionmanager.session_manager import SessionManager
-from etl.common.transformed_question_index import TransformedQuestionIndex
-from etl.common.raw_question_index import RawQuestionIndex
+from etl.common.questionindex.transformed_question_index import TransformedQuestionIndex
+from etl.common.questionindex.raw_question_index import RawQuestionIndex
 from models.datamodels.question import Question
 
 
@@ -38,11 +38,11 @@ class TransformQuestions():
         '''
         Given a list of question_nros, check if the index of transformed questions exists and return only not transformed nros.
         '''
-        file_name = self.transformed_index._get_filename_data_transformed(domains=domains)
+        file_name = self.transformed_index._get_filename_data(domains=domains)
         file_path = self.transformed_questions_data_path+file_name
 
         if os.path.exists(file_path):
-            return self.transformed_index._find_missing_nros_transformed(nro_list=question_nros, domains=domains)
+            return self.transformed_index._find_missing_nros(nro_list=question_nros, domains=domains)
         else:
             return question_nros
 
@@ -50,7 +50,7 @@ class TransformQuestions():
         '''
         Given a list of question nros to transform, retrieve them from the raw data, transform them and save them.
         '''
-        raw_filename = self.raw_index._get_filename_data_raw(domains=domains)
+        raw_filename = self.raw_index._get_filename_data(domains=domains)
         raw_questions = self.raw_index._read_json_file(self.raw_questions_data_path+raw_filename)
         questions_to_transform = [raw_questions['questions'][nro] for nro in question_nros]
 
@@ -81,7 +81,7 @@ class TransformQuestions():
             else:
                 return True
         
-    async def _transform_questions(self, question_nros: list[str], domains: list[dict] = None) -> list[Question]:
+    async def transform_questions(self, question_nros: list[str], domains: list[dict] = None) -> list[Question]:
 
         question_nros = self._find_not_indexed_questions(question_nros=question_nros, domains=domains)
         
@@ -112,8 +112,8 @@ class TransformQuestions():
                 transformed_questions.append(transformed)
 
         #Index the transformed questions
-        self.transformed_index._update_questions_index_transformed(nro_list=question_nros, domains=domains)
-        transformed_questions = self.transformed_index._update_questions_data_transformed(questions=transformed_questions, domains=domains)
+        self.transformed_index._update_questions_index(nro_list=question_nros, domains=domains)
+        transformed_questions = self.transformed_index._update_questions_data(questions=transformed_questions, domains=domains)
         
         return transformed_questions
     

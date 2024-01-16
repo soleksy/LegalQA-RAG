@@ -14,7 +14,7 @@ from etl.extract.extractquestions.question_payloads import QuestionPayloads
 from etl.extract.extractquestions.question_parser import QuestionParser
 from etl.extract.extractquestions.extract_questions_base import ExtractQuestionsBase
 
-from etl.common.raw_question_index import RawQuestionIndex
+from etl.common.questionindex.raw_question_index import RawQuestionIndex
 
 dotenv.load_dotenv()
 DOMAINS = os.getenv('DOMAINS')
@@ -116,9 +116,9 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
 
         nro_list=[item for sublist in results for item in sublist]
 
-        missing_nros = self.index._find_missing_nros_raw(nro_list=nro_list,batch_size=self.BATCH_SIZE,domains=domains )
+        missing_nros = self.index._find_missing_nros(nro_list=nro_list,batch_size=self.BATCH_SIZE,domains=domains )
         
-        self.index._update_questions_index_raw(nro_list=nro_list,domains=domains)
+        self.index._update_questions_index(nro_list=nro_list,domains=domains)
         
         return missing_nros
     
@@ -166,6 +166,6 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         if len(questions) == 0:
             return []
         else:
-            result_nros = self.index._update_questions_data_raw(questions=questions,domains=domains)
+            result_nros = self.index._update_questions_data(questions=questions,domains=domains)
         return result_nros
         
