@@ -1,16 +1,14 @@
 import json
 import logging
+from abc import ABC
 
-class Index():
+class ActIndexBase(ABC):
     def __init__(self):
         with open('etl/common/config.json') as f:
             self.config = json.load(f)
 
-        self.raw_questions_index_path = self.config['raw_questions_index']
-        self.raw_questions_data_path = self.config['raw_questions_data']
-
-        self.transformed_questions_index_path = self.config['transformed_questions_index']
-        self.transformed_questions_data_path = self.config['transformed_questions_data']
+        self.raw_acts_index_path = self.config['raw_acts_index']
+        self.raw_acts_data_path = self.config['raw_acts_data']
 
     def _read_json_file(self, filepath: str):
         try:
