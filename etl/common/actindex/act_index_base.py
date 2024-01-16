@@ -7,8 +7,8 @@ class ActIndexBase(ABC):
         with open('etl/common/config.json') as f:
             self.config = json.load(f)
 
-        self.raw_acts_index_path = self.config['raw_acts_index']
-        self.raw_acts_data_path = self.config['raw_acts_data']
+        self.tree_acts_index_path = self.config['raw_acts_index']
+        self.tree_acts_data_path = self.config['raw_acts_data']
 
     def _read_json_file(self, filepath: str):
         try:
