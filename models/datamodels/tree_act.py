@@ -1,15 +1,22 @@
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 
+class RelatedKeyword(BaseModel):
+    label: str
+    conceptId: int
+    instanceOfType: int
+
 class Element(BaseModel):
     children: List[str]
     parent: Optional[str]
     text: str
-    keywords: List[str]
+    keywords: List[RelatedKeyword]
 
-class Document(BaseModel):
+class TreeAct(BaseModel):
     nro: int
-    document_type: str
-    title: str
-    short_quote: str
+    id: str
+    actLawType: Optional[str] = None
+    title: Optional[str] = None
+    shortQuote: Optional[str] = None
     elements: Dict[str, Element]
+    keywords: List[RelatedKeyword]
