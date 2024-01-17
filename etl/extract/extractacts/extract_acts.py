@@ -11,6 +11,7 @@ from models.datamodels.tree_act import TreeAct, RelatedKeyword
 from etl.common.actindex.tree_act_index import TreeActIndex
 from etl.common.questionindex.transformed_question_index import TransformedQuestionIndex
 from etl.extract.extractacts.act_payloads import ActPayloads
+from etl.extract.extractacts.act_parser import ActParser
 
 dotenv.load_dotenv()
 GET_ACT_KEYWORDS_URL = os.getenv('GET_ACT_KEYWORDS_URL')
@@ -23,6 +24,7 @@ class ExtractActs():
         self.tree_acts_index = TreeActIndex()
         self.transformed_question_index = TransformedQuestionIndex()
         self.payloads = ActPayloads()
+        self.parser = ActParser()
 
     def _find_not_indexed_acts(self, act_nros: list[int]) -> list[int]:
         '''
@@ -98,5 +100,5 @@ class ExtractActs():
         data['keywords'] = keywords_models
         data['elements'] = {}
 
-        return TreeAct(**data)
+        return self.parser.parse_single_act(html_content=response.text, tree_act=TreeAct(**data), data=data)
 
