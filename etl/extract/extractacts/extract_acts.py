@@ -101,4 +101,23 @@ class ExtractActs():
         data['elements'] = {}
 
         return self.parser.parse_single_act(html_content=response.text, tree_act=TreeAct(**data), data=data)
+    
+    async def get_acts(self, act_nros: list[int]) -> None:
+        '''
+        Extract all acts from the list of act_nros and save them to the index.
+        '''
+        not_indexed_acts = self._find_not_indexed_acts(act_nros=act_nros)
+        self.tree_acts_index._update_act_index(not_indexed_acts)
+        for act_nro in not_indexed_acts:
+            tree_act = self.get_act(act_nro)
+            
+            file_name = self.tree_acts_index._get_filename_act(act_nro)
+            file_path = self.tree_acts_index.tree_acts_data_path+file_name
 
+            if os.path.exists(file_path):
+                logging.warning(f"Act with id {act_nro} already exists.")
+                continue
+            else:
+                self.tree_acts_index._write_json_file(file_path, tree_act.model_dump())
+        
+        
