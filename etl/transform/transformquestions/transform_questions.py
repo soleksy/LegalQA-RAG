@@ -113,8 +113,10 @@ class TransformQuestions():
 
         #Index the transformed questions
         self.transformed_index._update_questions_index(nro_list=question_nros, domains=domains)
-        transformed_questions = self.transformed_index._update_questions_data(questions=transformed_questions, domains=domains)
+        self.transformed_index._update_questions_data(questions=transformed_questions, domains=domains)
         
+        transformed_questions = [Question(**question) for question in transformed_questions]
+
         return transformed_questions
     
     def _transform_question(self, question: Question , parsable: set) -> dict:

@@ -19,6 +19,7 @@ class Element(BaseModel):
 class TreeAct(BaseModel):
     nro: int
     id: str
+    citeLink: Optional[str] = ""
     actLawType: Optional[str] = None
     title: Optional[str] = None
     shortQuote: Optional[str] = None
