@@ -118,4 +118,22 @@ class TransformedQuestionIndex(QuestionIndexBase):
                 return True
             else:
                 return False
+    
+    def get_act_nros(self, domains: list[dict] = None) -> list[str]:
+        '''
+        Given a list of domains, return all the act_nros from transformed questions in the index.
+        '''
+
+        file_name = self._get_filename_data(domains=domains)
+        file_path = self.transformed_questions_data_path+file_name
+
+        act_nros = []
+        if os.path.exists(file_path):
+            questions = self._read_json_file(file_path)
+            for question in questions['questions']:
+                for relatedAct in questions['questions'][question]['relatedActs']:
+                    act_nros.append(relatedAct['nro'])
+            return list(set(act_nros))
+        else:
+            return []
 
