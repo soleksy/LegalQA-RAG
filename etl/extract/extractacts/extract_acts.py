@@ -195,9 +195,15 @@ class ExtractActs():
         '''
         Extract all acts from the list of act_nros and save them to the index.
         '''
+        not_indexed_acts = self._find_not_indexed_acts(act_nros=act_nros)
+        
+        if not not_indexed_acts:
+            logging.info("All acts are already indexed.")
+            return None
+        
         logging.info("Extracting links...")
         links = await self.get_all_links(base_url=GET_CITE_BASE_URL)
-        not_indexed_acts = self._find_not_indexed_acts(act_nros=act_nros)
+        
         self.tree_acts_index._update_act_index(not_indexed_acts)
         logging.info("Extracting acts...")
         for act_nro in tqdm.tqdm(not_indexed_acts):
