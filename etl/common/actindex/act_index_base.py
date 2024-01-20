@@ -1,6 +1,6 @@
 import json
 import logging
-from abc import ABC
+from abc import ABC , abstractmethod
 
 class ActIndexBase(ABC):
     def __init__(self):
@@ -31,3 +31,39 @@ class ActIndexBase(ABC):
         except IOError as e:
             logging.warning(f"Error writing to file {filepath}.")
             raise e
+    
+    @abstractmethod
+    def _get_filename_index(self) -> str:
+        '''
+        Return the filename of the index file
+        '''
+    
+    @abstractmethod
+    def _get_filename_data(self, act_nro: int) -> str:
+        '''
+        Return the data of the act with the given act_nro
+        '''
+    
+    @abstractmethod
+    def _find_missing_nros(self, nro_list: list[int]) -> list[int]:
+        '''
+        Return the missing act_nros from the given list
+        '''
+
+    @abstractmethod
+    def _update_act_index(self, nro_list: list[int]) -> None:
+        '''
+        Update the index file with the given list of act_nros
+        '''
+    
+    @abstractmethod
+    def _update_act_data(self, act_nro: int, act_data: dict) -> None:
+        '''
+        Update the data file with the given act_data
+        '''
+
+    @abstractmethod
+    def _validate_act_index(self) -> bool:
+        '''
+        Validate the index file
+        '''
