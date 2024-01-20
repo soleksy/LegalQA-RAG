@@ -119,7 +119,7 @@ class TransformedQuestionIndex(QuestionIndexBase):
             else:
                 return False
     
-    def get_act_nros(self, domains: list[dict] = None) -> list[str]:
+    def _get_act_nros(self, domains: list[dict] = None) -> list[str]:
         '''
         Given a list of domains, return all the act_nros from transformed questions in the index.
         '''
@@ -134,6 +134,26 @@ class TransformedQuestionIndex(QuestionIndexBase):
                 for relatedAct in questions['questions'][question]['relatedActs']:
                     act_nros.append(relatedAct['nro'])
             return list(set(act_nros))
+        else:
+            return []
+    
+    def _get_keywords_ids(self, domains: list[dict] = None) -> list[dict]:
+        '''
+        Given a list of domains, return all the keywords from transformed questions in the index.
+        '''
+
+        file_name = self._get_filename_data(domains=domains)
+        file_path = self.transformed_questions_data_path+file_name
+
+        keywords = []
+        if os.path.exists(file_path):
+            questions = self._read_json_file(file_path)
+            for question in questions['questions']:
+                for keyword in questions['questions'][question]['keywords']:
+                    keywords.append((keyword['conceptId'], keyword['instanceOfType']))
+
+            keywords = list(set(keywords))
+            return [{'conceptId': keyword[0], 'instanceOfType': keyword[1]} for keyword in keywords]
         else:
             return []
 
