@@ -8,6 +8,14 @@ logging.basicConfig(level=logging.WARNING)
 
 class KeywordIndexBase(ABC):
 
+    def __init__(self):
+        with open('etl/common/config.json') as f:
+            self.config = json.load(f)
+
+        self.raw_keyword_index_path = self.config['raw_keyword_index']
+        self.raw_keyword_data_path = self.config['raw_keyword_data']
+
+
     def _read_json_file(self, filepath: str):
         try:
             with open(filepath, 'r') as file:

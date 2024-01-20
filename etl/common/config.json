@@ -6,5 +6,8 @@
     "transformed_questions_data": "data/transformed/questions/",
 
     "tree_acts_index": "data/raw/index/acts/",
-    "tree_acts_data": "data/raw/acts/"
+    "tree_acts_data": "data/raw/acts/",
+
+    "raw_keyword_index": "data/raw/index/keywords/",
+    "raw_keyword_data": "data/raw/keywords/"
 }
