@@ -35,7 +35,7 @@ class ExtractKeywords:
         return aiohttp.ClientSession(
             headers=self.session_manager.get_headers(),
             cookies=self.session_manager.get_cookies(),
-            connector=aiohttp.TCPConnector(ssl=False),
+            connector=aiohttp.TCPConnector(limit=25,ssl=False),
             timeout=self.timeout
         )
 
@@ -86,7 +86,7 @@ class ExtractKeywords:
     wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(asyncio.TimeoutError)))
     async def _get_keyword_part(self, keyword_id: int, start_from: int = 0, batch_size: int = BATCH_SIZE, ui_concept_id: int = -1) -> list[dict]:
-        payload = self.keyword_payloads._get_keyword_payload(keyword_id=keyword_id,ui_concept_id=ui_concept_id)
+        payload = self.keyword_payloads._get_keyword_payload(keyword_id=keyword_id,ui_concept_id=ui_concept_id, start_from=start_from, batch_size=batch_size)
         try:
             async with self._create_session() as session:
                 async with session.post(url=GET_KEYWORD_URL, json=payload) as response:
@@ -107,6 +107,7 @@ class ExtractKeywords:
     def _write_json_to_file(self, file_path: str, data: dict) -> None:
         with open(file_path, "w") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
+            f.close()
 
     def _create_tasks(self, keyword_id: int, max_hits: int, ui_concept_id: int) -> list:
         tasks = []
@@ -128,16 +129,20 @@ class ExtractKeywords:
         return result
 
     async def _run_tasks(self, keywords) -> None:
-        tasks = []
+        semaphore = asyncio.Semaphore(25)
 
-        semaphore = asyncio.Semaphore(10)
-        with tqdm.tqdm(total=len(keywords)) as pbar:
-            for keyword in keywords:
-                task = self._get_keyword(keyword_data=keyword , semaphore=semaphore)
+        async def process_batch(batch):
+            tasks = []
+            for keyword in batch:
+                task = self._get_keyword(keyword_data=keyword, semaphore=semaphore)
                 wrapped = self._wrapped_task(task, pbar)
                 tasks.append(wrapped)
-
             await asyncio.gather(*tasks)
+
+        with tqdm.tqdm(total=len(keywords)) as pbar:
+            for i in range(0, len(keywords), BATCH_SIZE):
+                batch = keywords[i:i + BATCH_SIZE]
+                await process_batch(batch)
 
     @retry(
     stop=stop_after_attempt(MAX_RETRIES),
