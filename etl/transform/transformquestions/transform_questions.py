@@ -83,6 +83,10 @@ class TransformQuestions():
         
     async def transform_questions(self, question_nros: list[str], domains: list[dict] = None) -> list[Question]:
 
+
+        if question_nros == []:
+            return []
+        
         question_nros = self._find_not_indexed_questions(question_nros=question_nros, domains=domains)
         
         questions_to_transform = self._retrieve_not_indexed_questions(question_nros=question_nros, domains=domains)

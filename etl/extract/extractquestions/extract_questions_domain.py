@@ -23,7 +23,7 @@ GET_REQUEST_URL = os.getenv('GET_REQUEST_URL')
 
 class ExtractQuestionsDomain(ExtractQuestionsBase):
     def __init__(self, sessionManager: SessionManager):
-        self.BATCH_SIZE = 25
+        self.BATCH_SIZE = 100
         self.REQUEST_URL = GET_REQUEST_URL
         self.TIMEOUT = ClientTimeout(total=25)
         self.domains = json.loads(DOMAINS)
@@ -102,7 +102,7 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         total_calls = max_hits // self.BATCH_SIZE
         remainder = max_hits % self.BATCH_SIZE
 
-        semaphore = asyncio.Semaphore(60)
+        semaphore = asyncio.Semaphore(40)
 
         async def limited_search(start_from, batch_size, domains=domains):
             async with semaphore:
