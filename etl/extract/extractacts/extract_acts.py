@@ -72,7 +72,7 @@ class ExtractActs():
         data = response.json()
         if 'keywords' not in data.keys():
             logging.warning(f"Could not find keywords for act with id: {act_id}")
-            return None
+            return []
         return data['keywords']
 
     @retry(retry=retry_if_exception_type(RetryableHTTPError), wait=wait_exponential(min=1, max=60))
@@ -204,10 +204,12 @@ class ExtractActs():
         logging.info("Extracting links...")
         links = await self.get_all_links(base_url=GET_CITE_BASE_URL)
         
-        self.tree_acts_index._update_act_index(not_indexed_acts)
         logging.info("Extracting acts...")
         for act_nro in tqdm.tqdm(not_indexed_acts):
             tree_act = await self.get_act(act_nro=act_nro, link=links[str(act_nro)])
+            if tree_act is None:
+                logging.warning(f"Could not extract act with id: {act_nro}")
+                continue
             
             file_name = self.tree_acts_index._get_filename_data(act_nro)
             file_path = self.tree_acts_index.tree_acts_data_path+file_name
@@ -217,5 +219,6 @@ class ExtractActs():
                 continue
             else:
                 self.tree_acts_index._write_json_file(file_path, tree_act.model_dump())
+                self.tree_acts_index._update_act_index([act_nro])
         
         

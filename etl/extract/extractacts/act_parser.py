@@ -15,7 +15,7 @@ class ActParser:
         return "\\\"" + unit_id + "\\\""
 
     def div_id_to_unit_id(self,div_id: str) -> str:
-        return div_id.strip("\\\"")
+        return div_id.strip("\\\"").replace(' ', '')
 
     def find_divs_at_target_level(self, soup: BeautifulSoup, parent_id: str, target_ids: list[str]) -> list[str]:
         target_ids_set = set(target_ids)
@@ -38,6 +38,7 @@ class ActParser:
                     if result:
                         return result
             return []
+        
         if ' ' in parent_id:
             print(f"Parent id contains space: {parent_id}")
         parent_div = soup.find('div', id=parent_id)
@@ -70,7 +71,14 @@ class ActParser:
             logging.error(f"Could not find units for act with id: {tree_act.nro}")
             return None
         
-        div_ids = [self.unit_id_to_div_id(unit['unitId']) for unit in data['units']]
+        clean_units = []
+        for unit in data['units']:
+            if ' ' in unit.get('unitId'):
+                clean_units.append({'unitId': unit['unitId'].replace(' ', '') , 'unitName': unit['unitName']})
+            else:
+                clean_units.append(unit)
+
+        div_ids = [self.unit_id_to_div_id(unit['unitId']) for unit in clean_units]
         elements_dict: Dict[str, Element] = {}
         for id in div_ids:
             elements_dict[id] = Element(
