@@ -15,6 +15,9 @@ class KeywordIndexBase(ABC):
         self.raw_keyword_index_path = self.config['raw_keyword_index']
         self.raw_keyword_data_path = self.config['raw_keyword_data']
 
+        self.transformed_keyword_index_path = self.config['transformed_keyword_index']
+        self.transformed_keyword_data_path = self.config['transformed_keyword_data']
+
 
     def _read_json_file(self, filepath: str):
         try:
