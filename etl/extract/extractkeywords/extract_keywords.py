@@ -158,6 +158,7 @@ class ExtractKeywords:
         if max_hits == 0:
             folder_path = self.raw_keyword_index.raw_keyword_data_path
             self._write_json_to_file(f"{folder_path}/{keyword_id}_({ui_concept_id}).json", [])
+            self.raw_keyword_index._update_keyword_index([keyword_data])
             return
 
         tasks = self._create_tasks(keyword_id, max_hits, ui_concept_id)
@@ -171,16 +172,14 @@ class ExtractKeywords:
                     logging.warning(f"Could not find keyword with id: {keyword_id}")
 
                 folder_path = self.raw_keyword_index.raw_keyword_data_path
-                if folder_path:
-                    self._write_json_to_file(f"{folder_path}/{keyword_id}_({ui_concept_id}).json", concatenated_results)
+                self._write_json_to_file(f"{folder_path}/{keyword_id}_({ui_concept_id}).json", concatenated_results)
+
+                self.raw_keyword_index._update_keyword_index([keyword_data])
+                
         except Exception as e:
             logging.error(f"Error gathering keyword parts: {e}", exc_info=True)
 
     async def get_keywords(self, keywords: list[dict]) -> None:
         keywords = self._find_missing_keywords(keywords)
-
         await self._run_tasks(keywords)
-
-        if keywords:
-            self.raw_keyword_index._update_keyword_index(keywords)
     

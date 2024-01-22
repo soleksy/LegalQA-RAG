@@ -13,7 +13,7 @@ class RawKeywordIndex(KeywordIndexBase):
     def _get_filename_data(self, keyword: dict) -> str:
         conceptId = keyword['conceptId']
         instanceOfType = keyword['instanceOfType']
-        return f'{conceptId}_{instanceOfType}_raw_keyword_data.json'
+        return f'{conceptId}_({instanceOfType}).json'
     
     def _find_missing_keywords(self, keyword_list: list[dict]) -> list[dict]:
         file_name = self._get_filename_index()
@@ -44,7 +44,7 @@ class RawKeywordIndex(KeywordIndexBase):
             index_set = set([(keyword['conceptId'], keyword['instanceOfType']) for keyword in index])
             keyword_set = set([(keyword['conceptId'], keyword['instanceOfType']) for keyword in keyword_list])
 
-            updated_index = list(set(index_set + keyword_set))
+            updated_index = list(index_set.union(keyword_set))
 
             to_write = list({'conceptId': keyword[0], 'instanceOfType': keyword[1]} for keyword in updated_index)
             self._write_json_file(file_path, to_write)
