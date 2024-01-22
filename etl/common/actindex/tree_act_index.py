@@ -50,6 +50,15 @@ class TreeActIndex(ActIndexBase):
             return None
         else:
             self._write_json_file(file_path, act_data)
+    
+    def _get_act_nros(self)-> list[int]:
+        file_name = self._get_filename_index()
+        file_path = self.tree_acts_index_path+file_name
+
+        if os.path.exists(file_path):
+            return self._read_json_file(file_path)
+        else:
+            return []
 
     def _validate_act_index(self) -> bool:
         index_file_name = self._get_filename_index()
