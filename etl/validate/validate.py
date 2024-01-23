@@ -5,6 +5,7 @@ import logging
 from etl.common.actindex.tree_act_index import TreeActIndex
 from etl.common.questionindex.transformed_question_index import TransformedQuestionIndex
 from etl.common.keywordindex.raw_keyword_index import RawKeywordIndex
+from etl.common.keywordindex.transformed_keyword_index import TransformedKeywordIndex
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s' , force=True)
@@ -15,6 +16,7 @@ class Validate():
         self.tree_acts_index = TreeActIndex()
         self.transformed_question_index = TransformedQuestionIndex()
         self.raw_keyword_index = RawKeywordIndex()
+        self.transformed_keyword_index = TransformedKeywordIndex()
     
     def validate_dataset(self):
         questions_file_name = self.transformed_question_index._get_filename_data()
@@ -96,3 +98,42 @@ class Validate():
                             continue
                         if keyword_data.get(str(act_nro)) == None:
                             logging.info(f'Act {act_nro} not found in keyword {keyword["conceptId"]}')
+    
+    def validate_act_keyword_transformed(self):
+        acts_folder_path = self.tree_acts_index.tree_acts_data_path
+
+        for file in os.listdir(acts_folder_path):
+            if file.endswith('.json'):
+                with open(acts_folder_path+file, 'r') as f:
+                    act_data = json.load(f)
+                
+                act_keywords = act_data['keywords']
+                act_nro = act_data['nro']
+
+                for keyword in act_keywords:
+                    folder_path = self.transformed_keyword_index.transformed_keyword_data_path
+                    file_name_keyword =self.transformed_keyword_index._get_filename_data(keyword)
+                    if os.path.exists(folder_path+file_name_keyword):
+                        with open(folder_path+file_name_keyword, 'r') as f:
+                            keyword_data = json.load(f)
+                        if keyword_data == []:
+                            continue
+                        if keyword_data.get(str(act_nro)) == None:
+                            logging.info(f'Act {act_nro} not found in keyword {keyword["conceptId"]}')
+        
+        raw_keyword_dir = self.raw_keyword_index.raw_keyword_data_path
+        transformed_keyword_dir = self.transformed_keyword_index.transformed_keyword_data_path
+
+        raw_files = set()
+        transformed_files = set()
+
+        for file in os.listdir(raw_keyword_dir):
+            if file.endswith('.json'):
+                raw_files.add(file)
+        
+        for file in os.listdir(transformed_keyword_dir):
+            if file.endswith('.json'):
+                transformed_files.add(file)
+        
+        if raw_files.difference(transformed_files) != set():
+            logging.info('Number of files in raw and transformed keyword data folder is not the same')
