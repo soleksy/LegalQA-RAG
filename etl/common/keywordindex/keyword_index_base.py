@@ -1,7 +1,7 @@
 import json
 import logging
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -40,5 +40,27 @@ class KeywordIndexBase(ABC):
         except IOError as e:
             logging.warning(f"Error writing to file {filepath}.")
             raise e
-        
     
+    @abstractmethod
+    def _get_filename_index(self) -> str:
+        '''
+        Returns the filename of the index file.
+        '''
+
+    @abstractmethod
+    def _get_filename_data(self, keyword: dict) -> str:
+        '''
+        Returns the filename of the data file.
+        '''
+    
+    @abstractmethod
+    def _find_missing_keywords(self, keyword_list: list[dict]) -> list[dict]:
+        '''
+        Returns a list of keywords data, which are missing from the index.
+        '''
+    
+    @abstractmethod
+    def _update_keyword_index(self, keyword_list: list[dict]) -> None:
+        '''
+        Updates the index with the given keywords.
+        '''
