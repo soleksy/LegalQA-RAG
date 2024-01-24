@@ -10,6 +10,9 @@ class ActIndexBase(ABC):
         self.tree_acts_index_path = self.config['tree_acts_index']
         self.tree_acts_data_path = self.config['tree_acts_data']
 
+        self.leaf_node_acts_index_path = self.config['leaf_node_acts_index']
+        self.leaf_node_acts_data_path = self.config['leaf_node_acts_data']
+
     def _read_json_file(self, filepath: str):
         try:
             with open(filepath, 'r') as file:

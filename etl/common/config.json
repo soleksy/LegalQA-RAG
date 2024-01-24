@@ -8,9 +8,13 @@
     "tree_acts_index": "data/raw/index/acts/",
     "tree_acts_data": "data/raw/acts/",
 
+    "leaf_node_acts_index": "data/transformed/index/acts/",
+    "leaf_node_acts_data": "data/transformed/acts/",
+
     "raw_keyword_index": "data/raw/index/keywords/",
     "raw_keyword_data": "data/raw/keywords/",
 
     "transformed_keyword_index": "data/transformed/index/keywords/",
     "transformed_keyword_data": "data/transformed/keywords/"
+
 }
