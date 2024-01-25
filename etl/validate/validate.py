@@ -1,5 +1,6 @@
 import os
 import json
+import tqdm
 import logging
 
 from etl.common.actindex.tree_act_index import TreeActIndex
@@ -137,3 +138,43 @@ class Validate():
         
         if raw_files.difference(transformed_files) != set():
             logging.info('Number of files in raw and transformed keyword data folder is not the same')
+
+    def validate_keyword_units(self):
+        transformed_keyword_index = TransformedKeywordIndex()
+        folder_path = transformed_keyword_index.transformed_keyword_data_path
+
+        raw_act_index = TreeActIndex()
+        act_data_path = raw_act_index.tree_acts_data_path
+
+        correct = 0
+        incorrect = 0
+
+        for file in tqdm.tqdm(os.listdir(folder_path)):
+            if file.endswith('.json'):
+                with open(folder_path+file, 'r') as f:
+                    keyword_data = json.load(f)
+                
+                for act_nro in keyword_data:
+                    act_filename = raw_act_index._get_filename_data(act_nro)
+                    if os.path.exists(act_data_path+act_filename):
+                        with open(act_data_path+act_filename, 'r') as f:
+                            act_data = json.load(f)
+
+                    if keyword_data[act_nro]['relationData'] == {}:
+                        continue
+                    else:
+                        for unit in keyword_data[act_nro]['relationData']['units']:
+                            if '-' in unit['id']:
+                                left = unit['id'].split('-')[0]
+                                right = unit['id'].split('-')[1]
+                                if left not in act_data['elements'] or right not in act_data['elements']:
+                                    incorrect += 1
+                                else:
+                                    correct += 1
+                            else:
+                                if unit['id'] not in act_data['elements']:
+                                    incorrect += 1
+                                else:
+                                    correct += 1
+                                    
+        logging.info(f'correct vs incorrect: {correct} vs {incorrect}')
