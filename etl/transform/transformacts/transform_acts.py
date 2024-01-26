@@ -7,6 +7,8 @@ import tiktoken
 from langchain.text_splitter import CharacterTextSplitter
 from transformers import GPT2TokenizerFast
 
+from models.datamodels.act_vector import ActVector
+
 from etl.common.keywordindex.transformed_keyword_index import TransformedKeywordIndex
 from etl.common.actindex.tree_act_index import TreeActIndex
 from etl.common.actindex.leaf_node_act_index import LeafNodeActIndex
@@ -244,3 +246,87 @@ class TransformActs():
                     })
                 
         return vectors , _set
+    
+
+    def _transform_act(self, document: dict)-> dict:
+        transformed_document = {}
+
+        transformed_document['nro'] = document['nro']
+        transformed_document['title'] = document['title']
+        transformed_document['actLawType'] = document['actLawType']
+
+        url = document['citeLink']
+        last_slash_pos = url.rfind('/')
+        new_url = url[:last_slash_pos] + '?unitId='
+
+        transformed_document['citeLink'] = new_url
+        transformed_document['elements'] = {}
+        transformed_document['reconstruct'] = {}
+
+        _set = set()
+
+        for element in document['elements']:
+            if element not in _set:
+                if document['elements'][element]['children'] == []:
+                    root_id = self._extract_substrings(element)[0]
+                    if root_id not in document['elements']:
+
+                        root_id = self._fix_element(root_id)
+
+                        if root_id not in document['elements']:
+                           logging.error(f'Root id: {root_id} not found in {document["nro"]}')
+
+                    vectors, _set = self._get_subtrees(root_id, document , _set)
+                    transformed_document['elements'][root_id] = vectors
+
+                    if len(vectors) == 1:
+
+                        transformed_document['reconstruct'][root_id] = {
+                            'cite_id': root_id,
+                            'text': document['elements'][root_id]['text']
+                            }
+                        
+                        vectors[0]['reconstruct_id'] = root_id
+                        vectors[0] = ActVector(**vectors[0]).model_dump()
+
+                    elif len(vectors) > 1 and len(vectors[0]['node_ids']) == 1:
+
+                        for vector in vectors:
+                            transformed_document['reconstruct'][f'{root_id}_{vector["chunk_id"]}'] = {
+                                'cite_id': root_id,
+                                'text': vector['text'],
+                            }
+
+                            vector['reconstruct_id'] = f'{root_id}_{vector["chunk_id"]}'
+                            vector = ActVector(**vector).model_dump()
+                    else:
+                        transformed_document['reconstruct'][root_id] = {
+                            'cite_id': root_id,
+                            'text': document['elements'][root_id]['text']
+                        }
+                        
+                        for vector in vectors:
+                            if vector['chunk_id'] is None:
+                                next_node = vector['node_ids'][1]
+
+                                transformed_document['reconstruct'][next_node] = {
+                                    'cite_id': next_node,
+                                    'text': ' '.join(document['elements'][node]['text'] for node in vector['node_ids'][1:])
+                                }
+
+                                vector['reconstruct_id'] = next_node
+                                vector = ActVector(**vector).model_dump()
+
+                            else:
+                                next_node = vector['node_ids'][1]
+                                _vector_text = vector['parentless_text']
+
+                                transformed_document['reconstruct'][f'{next_node}_{vector["chunk_id"]}'] = {
+                                    'cite_id': next_node,
+                                    'text': _vector_text
+                                }
+
+                                vector['reconstruct_id'] = f'{next_node}_{vector["chunk_id"]}'
+                                vector = ActVector(**vector).model_dump()
+
+        return transformed_document
