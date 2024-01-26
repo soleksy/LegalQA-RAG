@@ -147,3 +147,100 @@ class TransformActs():
                     else:
                         self._add_keyword_to_elements(document['elements'], unit['id'], keyword)
         return document
+
+    def _chunk_text(self, text: str, num_of_chunks: int)-> list[str]:
+        chunk_size = (get_tokens(text) // num_of_chunks) + 1
+
+        text_splitter = CharacterTextSplitter.from_huggingface_tokenizer(
+                                tokenizer=gpt2_tokenizer,
+                                chunk_size=chunk_size,
+                                chunk_overlap=0,
+                                separator = ' ',
+                                )
+        
+        return text_splitter.split_text(text)
+
+    def _get_subtrees(self, root_id: str, document: dict ,_set: set() = set())-> (list[dict],set()):
+        '''
+        Given a root_id of a document subtree, find all its nodes and return a list of vectors representing the subtrees
+        '''
+
+        elements = document['elements']
+        _set.add(root_id)
+
+        def traverse(node_id, _set: set() = _set):
+
+            _set.add(node_id)
+            node = elements.get(node_id, {})
+            subtree = [{'id': node_id, 'text': node.get('text', '') , 'keywords': node.get('keywords', [])}]
+
+            for child_id in node.get('children', []):
+                subtree.extend(traverse(child_id))
+            return subtree
+
+        #Create subtrees
+        root_node = elements.get(root_id, {})
+        root_node_entry = [{'id': root_id, 'text': root_node.get('text', '') , 'keywords': root_node.get('keywords', [])}]
+        subtrees = []
+        children = root_node.get('children', [])
+
+        if children == []:
+            subtrees.append(root_node_entry)
+        else:
+            for child_id in root_node.get('children', []):
+                subtree = root_node_entry + traverse(child_id , _set)
+                subtrees.append(subtree)
+        
+        #Split subtrees into vectors of at most 512 tokens
+        vectors = []
+
+        for subtree in subtrees:
+            total_tokens = 0
+            node_ids = []
+            concatenated_text = ''
+            keywords = []
+            for node in subtree:
+                node_ids.append(node['id'])
+                for keyword in node['keywords']:
+                    if keyword not in keywords:
+                        keywords.append(keyword)
+            
+            concatenated_text  = ' '.join(node['text'] for node in subtree)
+            total_tokens = get_tokens(concatenated_text)
+
+            parentless_text = ' '.join(node['text'] for node in subtree[1:])
+
+            if total_tokens > 512:
+                num_chunks = (total_tokens // 512) + 1
+
+                #Chunking based on gpt-2 tokens
+                texts = self._chunk_text(concatenated_text, num_chunks)
+                parentless_texts = self._chunk_text(parentless_text, num_chunks)
+
+                for text in texts:
+                    vectors.append({
+                        'act_nro': document['nro'],
+                        'parent_id': root_id,
+                        'chunk_id': texts.index(text) + 1,
+                        'total_chunks': len(texts),
+                        'parent_tokens': get_openai_tokens(elements[root_id]['text']),
+                        'text_tokens': get_openai_tokens(parentless_texts[texts.index(text)]),
+                        'node_ids': node_ids ,
+                        'text': text,
+                        'parentless_text': parentless_texts[texts.index(text)],
+                        'keywords': keywords
+                        })
+            else:
+                vectors.append({
+                    'act_nro': document['nro'],
+                    'parent_id': root_id,
+                    'chunk_id': None,
+                    'total_chunks': None,
+                    'parent_tokens': get_openai_tokens(elements[root_id]['text']),
+                    'openai_tokens': get_openai_tokens(parentless_text),
+                    'node_ids': node_ids, 
+                    'text': concatenated_text,
+                    'keywords': keywords
+                    })
+                
+        return vectors , _set
