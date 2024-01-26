@@ -1,4 +1,5 @@
 import os
+import json
 import roman
 import logging
 import tiktoken
@@ -100,3 +101,49 @@ class TransformActs():
         element = split[0] + '(' + roman.toRoman(int(arabic)) + split[1][1:]
 
         return element
+    
+    def _add_keyword_to_elements(self, elements: dict[dict], current_key: str, keyword: dict) -> None:
+        '''
+        Recursively add the keyword to the current_key node and children of the current_key
+        '''
+        if keyword not in elements[current_key]['keywords']:
+            elements[current_key]['keywords'].append(keyword)
+
+        for child in elements[current_key].get('children', []):
+            self._add_keyword_to_elements(elements, child, keyword)
+    
+    def _pass_keywords_onto_subtrees(self, document: dict)-> dict:
+
+        folder_data_path = self.transformed_keyword_index.transformed_keyword_data_path
+        act_nro = document['nro']
+
+        for keyword in document['keywords']:
+            file_name = self.transformed_keyword_index._get_filename_data(keyword)
+            if os.path.exists(folder_data_path + file_name):
+                with open(folder_data_path + file_name, 'r') as f:
+                    keyword_data = json.load(f)
+
+            if keyword_data.get(str(act_nro), None) is None:
+                continue
+            elif keyword_data.get(str(act_nro))['relationData'] == {}:
+                for element in document['elements']:
+                    self._add_keyword_to_elements(document['elements'], element, keyword)
+            else:
+                for unit in keyword_data[str(act_nro)]['relationData']['units']:
+                    if '-' in unit['id']:
+
+                        start_processing = False
+                        
+                        left = unit['id'].split('-')[0]
+                        right = unit['id'].split('-')[1]
+
+                        for key in document['elements']:
+                            if key == left:
+                                start_processing = True
+                            if start_processing:
+                                self._add_keyword_to_elements(document['elements'], key, keyword)
+                            if key == right:
+                                break
+                    else:
+                        self._add_keyword_to_elements(document['elements'], unit['id'], keyword)
+        return document
