@@ -178,3 +178,87 @@ class Validate():
                                     correct += 1
                                     
         logging.info(f'correct vs incorrect: {correct} vs {incorrect}')
+    
+    
+    def _extract_substrings(self, pattern: str)-> list[str]:
+        stack = []
+        substrings = []
+        temp = ""
+
+        for i, char in enumerate(pattern):
+            if char == '(':
+                stack.append(i)
+            elif char == ')':
+                if stack:
+                    start = stack.pop()
+                    if not stack:
+                        substrings.append(pattern[:i + 1])
+                else:
+                    raise ValueError("Unmatched closing parenthesis")
+            temp += char
+
+        if stack:
+            raise ValueError("Unmatched opening parenthesis")
+        return substrings
+
+
+    def _find_errors_in_element_ids(self):
+        raw_act_index = TreeActIndex()
+        act_data_path = raw_act_index.tree_acts_data_path
+
+        for file in tqdm.tqdm(os.listdir(act_data_path)):
+            if file.endswith('.json'):
+                with open(act_data_path+file, 'r') as f:
+                    act_data = json.load(f)
+                    elements = act_data['elements']
+
+                if elements == {}:
+                    continue
+                else:
+                    for element in elements:
+                        if ' ' in element:
+                            print(f'Error in act {act_data["nro"], {element}}')
+                        
+                        for child in elements[element]['children']:
+                            if ' ' in child:
+                                print(f'Error in act {act_data["nro"], {child}}')
+                            if child not in elements:
+                                print(f'Error in act {act_data["nro"], {child}}')
+    
+    def check_no_backward_references(self, document: dict, root_id: str)-> bool:
+        def dfs(node_id, parent_id=None):
+
+            node = document.get(node_id, {})
+            
+            for child_id in node.get('children', []):
+                if parent_id and parent_id in document.get(child_id, {}).get('children', []):
+                    return False
+                
+                if not dfs(child_id, node_id):
+                    return False
+                    
+            return True
+
+        return dfs(root_id)
+
+    def _validate_act_tree_structure(self):
+        raw_act_index = TreeActIndex()
+        act_data_path = raw_act_index.tree_acts_data_path
+        for file in tqdm.tqdm(os.listdir(act_data_path)):
+            if file.endswith('.json'):
+                with open(act_data_path+file, 'r') as f:
+                    act_data = json.load(f)
+                    elements = act_data['elements']
+
+                if elements == {}:
+                    continue
+                else:
+                    for element in elements:
+                        if act_data['elements'][element]['children'] == []:
+                            parent = self._extract_substrings(element)[0]
+                            isTraversable = self.check_no_backward_references(act_data['elements'], parent)
+
+                            if isTraversable:
+                                continue
+                            else:
+                                print(f'Error in act {act_data["nro"], {element}}')
