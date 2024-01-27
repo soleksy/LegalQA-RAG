@@ -1,4 +1,5 @@
 import os
+import json
 import dotenv
 import asyncio
 import aiohttp
@@ -115,6 +116,8 @@ class TransformQuestions():
             if transformed is not None:
                 transformed_questions.append(transformed)
 
+        transformed_questions = self._get_only_frequent_acts_questions(n=100) #Smaller acts contain alot of api errors
+        question_nros = [int(nro) for nro in transformed_questions.keys()]
         #Index the transformed questions
         self.transformed_index._update_questions_index(nro_list=question_nros, domains=domains)
         self.transformed_index._update_questions_data(questions=transformed_questions, domains=domains)
@@ -150,3 +153,57 @@ class TransformQuestions():
 
         return question.model_dump()
     
+    def _get_act_frequencies(self) -> dict:
+        '''
+        Return a dictionary with act_nro as keys and frequency in questions as values.
+        '''
+        file_name = self.transformed_index._get_filename_data()
+        file_path = self.transformed_questions_data_path+file_name
+
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                questions = data['questions']
+            
+            act_frequencies = {}
+
+            for question in questions:
+                for relatedAct in questions[question]['relatedActs']:
+                    if relatedAct['nro'] not in act_frequencies.keys():
+                        act_frequencies[relatedAct['nro']] = 1
+                    else:
+                        act_frequencies[relatedAct['nro']] += 1
+
+            #sort
+            act_frequencies = dict(sorted(act_frequencies.items(), key=lambda item: item[1], reverse=True))
+
+            return act_frequencies
+    
+    def _get_only_frequent_acts_questions(self, n: int = 100) -> list[int]:
+        '''
+        Return a list of questions with acts with at least n questions associated.
+        '''
+        act_frequencies = self._get_act_frequencies()
+        top_n = [int(key) for key in act_frequencies.keys() if act_frequencies[key] >= n]
+
+        file_name = self.transformed_index._get_filename_data()
+        file_path = self.transformed_questions_data_path+file_name
+
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                questions = data['questions']
+        clean_questions = {}
+
+        
+        for question in questions:
+            clean_related_acts = []
+            for relatedAct in questions[question]['relatedActs']:
+                if relatedAct['nro'] in top_n:
+                    clean_related_acts.append(relatedAct)
+            if clean_related_acts != []:
+                clean_questions[question] = questions[question]
+                clean_questions[question]['relatedActs'] = clean_related_acts
+        
+        return clean_questions
+
