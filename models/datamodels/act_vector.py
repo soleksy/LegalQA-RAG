@@ -16,3 +16,4 @@ class ActVector(BaseModel):
     chunk_id: Optional[int] = None
     total_chunks: Optional[int] = None
     keywords: List[Keyword] = []
+    node_ids: List[str] = []
