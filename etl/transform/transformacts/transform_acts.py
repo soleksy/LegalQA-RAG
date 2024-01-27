@@ -1,4 +1,5 @@
 import os
+import tqdm
 import json
 import roman
 import logging
@@ -10,8 +11,10 @@ from transformers import GPT2TokenizerFast
 from models.datamodels.act_vector import ActVector
 
 from etl.common.keywordindex.transformed_keyword_index import TransformedKeywordIndex
+from etl.common.questionindex.transformed_question_index import TransformedQuestionIndex
 from etl.common.actindex.tree_act_index import TreeActIndex
 from etl.common.actindex.leaf_node_act_index import LeafNodeActIndex
+
 
 
 gpt2_tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
@@ -26,9 +29,12 @@ get_openai_tokens = lambda text: len(encoding.encode(text))
 class TransformActs():
     def __init__(self):
         self.transformed_keyword_index = TransformedKeywordIndex()
+        self.transformed_question_index = TransformedQuestionIndex()
 
         self.raw_acts_index = TreeActIndex()
         self.transformed_acts_index = LeafNodeActIndex()
+
+
         
 
     def _get_raw_index_acts(self) -> list[int]:
@@ -37,8 +43,7 @@ class TransformActs():
         raw_index_file_path = self.raw_acts_index.tree_acts_index_path + raw_index_file_name
 
         if os.path.exists(raw_index_file_path):
-            with open(raw_index_file_path, 'r') as f:
-                return self.raw_acts_index._read_json_file(f)
+            return self.raw_acts_index._read_json_file(raw_index_file_path)
         else:
             return []
 
@@ -48,11 +53,30 @@ class TransformActs():
         transformed_index_file_path = self.transformed_acts_index.leaf_node_acts_index_path + transformed_index_file_name
 
         if os.path.exists(transformed_index_file_path):
-            with open(transformed_index_file_path, 'r') as f:
-                return self.transformed_acts_index._read_json_file(f)
+                return self.transformed_acts_index._read_json_file(transformed_index_file_path)
         else:
             return []
 
+    def _find_not_indexed_in_questions_acts(self) -> list[int]:
+        '''
+        Find acts that are not indexed in the questions index
+        '''
+        
+        transformed_questions_file_name = self.transformed_question_index._get_filename_data()
+        transformed_questions_data_path = self.transformed_question_index.transformed_questions_data_path + transformed_questions_file_name
+
+        act_nros = set()
+        if os.path.exists(transformed_questions_data_path):
+            with open(transformed_questions_data_path, 'r') as f:
+                transformed_questions = json.load(f)
+
+            for question in transformed_questions['questions']:
+                for relatedAct in transformed_questions['questions'][question]['relatedActs']:
+                    if relatedAct['nro'] not in act_nros:
+                        act_nros.add(relatedAct['nro'])
+        
+        return list(act_nros)
+            
     def _find_not_indexed_acts(self) -> list[int]:
         raw_index_acts = self._get_raw_index_acts()
         transformed_index_acts = self._get_transformed_index_acts()
@@ -104,15 +128,28 @@ class TransformActs():
 
         return element
     
-    def _add_keyword_to_elements(self, elements: dict[dict], current_key: str, keyword: dict) -> None:
+    def _add_keyword_to_elements(self, elements: dict, current_key: str, keyword: dict, processed_elements: set) -> None:
         '''
-        Recursively add the keyword to the current_key node and children of the current_key
+        Recursively add the keyword to the current_key node and its children, avoiding infinite recursion
+        by using a set to track processed elements.
         '''
+        # If current element is already processed, return to avoid infinite recursion
+        if current_key in processed_elements:
+            return
+
+        # Mark the current element as processed
+        processed_elements.add(current_key)
+
+        # Add the keyword to the current element if it's not already there
         if keyword not in elements[current_key]['keywords']:
             elements[current_key]['keywords'].append(keyword)
 
-        for child in elements[current_key].get('children', []):
-            self._add_keyword_to_elements(elements, child, keyword)
+        # Process children
+        children = elements[current_key].get('children', [])
+        for child in children:
+            self._add_keyword_to_elements(elements, child, keyword, processed_elements)
+
+
     
     def _pass_keywords_onto_subtrees(self, document: dict)-> dict:
 
@@ -125,34 +162,33 @@ class TransformActs():
                 with open(folder_data_path + file_name, 'r') as f:
                     keyword_data = json.load(f)
 
-            if keyword_data.get(str(act_nro), None) is None:
-                continue
-            elif keyword_data.get(str(act_nro))['relationData'] == {}:
-                for element in document['elements']:
-                    self._add_keyword_to_elements(document['elements'], element, keyword)
-            else:
-                for unit in keyword_data[str(act_nro)]['relationData']['units']:
-                    if '-' in unit['id']:
+                if keyword_data.get(str(act_nro), None) is None:
+                    continue
+                elif keyword_data.get(str(act_nro))['relationData'] == {}:
+                    for element in document['elements']:
+                        self._add_keyword_to_elements(document['elements'], element, keyword, set())
+                else:
+                    for unit in keyword_data[str(act_nro)]['relationData']['units']:
+                        if '-' in unit['id']:
 
-                        start_processing = False
-                        
-                        left = unit['id'].split('-')[0]
-                        right = unit['id'].split('-')[1]
+                            start_processing = False
+                            
+                            left = unit['id'].split('-')[0]
+                            right = unit['id'].split('-')[1]
 
-                        for key in document['elements']:
-                            if key == left:
-                                start_processing = True
-                            if start_processing:
-                                self._add_keyword_to_elements(document['elements'], key, keyword)
-                            if key == right:
-                                break
-                    else:
-                        self._add_keyword_to_elements(document['elements'], unit['id'], keyword)
+                            for key in document['elements']:
+                                if key == left:
+                                    start_processing = True
+                                if start_processing:
+                                    self._add_keyword_to_elements(document['elements'], key, keyword, set())
+                                if key == right:
+                                    break
+                        else:
+                            self._add_keyword_to_elements(document['elements'], unit['id'], keyword, set())
         return document
 
-    def _chunk_text(self, text: str, num_of_chunks: int)-> list[str]:
-        chunk_size = (get_tokens(text) // num_of_chunks) + 1
-
+    def _chunk_text(self, text: str, num_chunks: int)-> list[str]:
+        chunk_size = (get_tokens(text) // num_chunks) + 1
         text_splitter = CharacterTextSplitter.from_huggingface_tokenizer(
                                 tokenizer=gpt2_tokenizer,
                                 chunk_size=chunk_size,
@@ -161,6 +197,7 @@ class TransformActs():
                                 )
         
         return text_splitter.split_text(text)
+
 
     def _get_subtrees(self, root_id: str, document: dict ,_set: set() = set())-> (list[dict],set()):
         '''
@@ -199,52 +236,78 @@ class TransformActs():
         for subtree in subtrees:
             total_tokens = 0
             node_ids = []
-            concatenated_text = ''
             keywords = []
             for node in subtree:
                 node_ids.append(node['id'])
                 for keyword in node['keywords']:
                     if keyword not in keywords:
                         keywords.append(keyword)
-            
-            concatenated_text  = ' '.join(node['text'] for node in subtree)
-            total_tokens = get_tokens(concatenated_text)
 
-            parentless_text = ' '.join(node['text'] for node in subtree[1:])
-
-            if total_tokens > 512:
-                num_chunks = (total_tokens // 512) + 1
-
-                #Chunking based on gpt-2 tokens
-                texts = self._chunk_text(concatenated_text, num_chunks)
-                parentless_texts = self._chunk_text(parentless_text, num_chunks)
-
-                for text in texts:
+            if len(subtree) == 1:
+                if get_tokens(subtree[0]['text']) < 512:
                     vectors.append({
                         'act_nro': document['nro'],
                         'parent_id': root_id,
-                        'chunk_id': texts.index(text) + 1,
-                        'total_chunks': len(texts),
-                        'parent_tokens': get_openai_tokens(elements[root_id]['text']),
-                        'text_tokens': get_openai_tokens(parentless_texts[texts.index(text)]),
-                        'node_ids': node_ids ,
-                        'text': text,
-                        'parentless_text': parentless_texts[texts.index(text)],
+                        'chunk_id': None,
+                        'total_chunks': None,
+                        'parent_tokens': 0,
+                        'text_tokens': get_openai_tokens(elements[root_id]['text']),
+                        'node_ids': node_ids,
+                        'text': subtree[0]['text'],
                         'keywords': keywords
                         })
+                else:
+                    num_chunks = (get_tokens(subtree[0]['text']) // 512) + 1
+                    texts = self._chunk_text(subtree[0]['text'], num_chunks)
+
+                    for text in texts:
+                        vectors.append({
+                            'act_nro': document['nro'],
+                            'parent_id': root_id,
+                            'chunk_id': texts.index(text) + 1,
+                            'total_chunks': len(texts),
+                            'parent_tokens': 0,
+                            'text_tokens': get_openai_tokens(text),
+                            'node_ids': node_ids,
+                            'text': text,
+                            'keywords': keywords
+                            })
             else:
-                vectors.append({
-                    'act_nro': document['nro'],
-                    'parent_id': root_id,
-                    'chunk_id': None,
-                    'total_chunks': None,
-                    'parent_tokens': get_openai_tokens(elements[root_id]['text']),
-                    'openai_tokens': get_openai_tokens(parentless_text),
-                    'node_ids': node_ids, 
-                    'text': concatenated_text,
-                    'keywords': keywords
-                    })
-                
+                concatenated_text  = ' '.join(node['text'] for node in subtree)
+                total_tokens = get_tokens(concatenated_text)
+
+                if total_tokens > 512:
+                    num_chunks = (total_tokens // 512) + 1
+
+                    #Chunking based on gpt-2 tokens
+                    texts = self._chunk_text(concatenated_text, num_chunks)
+
+                    for text in texts:
+                        vectors.append({
+                            'act_nro': document['nro'],
+                            'parent_id': root_id,
+                            'chunk_id': texts.index(text) + 1,
+                            'total_chunks': len(texts),
+                            'parent_tokens': 0,
+                            'text_tokens': get_openai_tokens(text),
+                            'node_ids': node_ids,
+                            'text': text,
+                            'keywords': keywords
+                            })
+                else:
+                    parentless_text = ' '.join(node['text'] for node in subtree[1:])
+                    parent_tokens = get_openai_tokens(subtree[0]['text'])
+                    vectors.append({
+                        'act_nro': document['nro'],
+                        'parent_id': root_id,
+                        'chunk_id': None,
+                        'total_chunks': None,
+                        'parent_tokens': parent_tokens,
+                        'text_tokens': get_openai_tokens(parentless_text),
+                        'node_ids': node_ids, 
+                        'text': concatenated_text,
+                        'keywords': keywords
+                        })
         return vectors , _set
     
 
@@ -287,8 +350,7 @@ class TransformActs():
                             }
                         
                         vectors[0]['reconstruct_id'] = root_id
-                        vectors[0] = ActVector(**vectors[0]).model_dump()
-
+                        
                     elif len(vectors) > 1 and len(vectors[0]['node_ids']) == 1:
 
                         for vector in vectors:
@@ -298,7 +360,7 @@ class TransformActs():
                             }
 
                             vector['reconstruct_id'] = f'{root_id}_{vector["chunk_id"]}'
-                            vector = ActVector(**vector).model_dump()
+                            
                     else:
                         transformed_document['reconstruct'][root_id] = {
                             'cite_id': root_id,
@@ -315,11 +377,10 @@ class TransformActs():
                                 }
 
                                 vector['reconstruct_id'] = next_node
-                                vector = ActVector(**vector).model_dump()
-
+                                
                             else:
                                 next_node = vector['node_ids'][1]
-                                _vector_text = vector['parentless_text']
+                                _vector_text = vector['text']
 
                                 transformed_document['reconstruct'][f'{next_node}_{vector["chunk_id"]}'] = {
                                     'cite_id': next_node,
@@ -327,6 +388,26 @@ class TransformActs():
                                 }
 
                                 vector['reconstruct_id'] = f'{next_node}_{vector["chunk_id"]}'
-                                vector = ActVector(**vector).model_dump()
+
+        for element in transformed_document['elements']:
+            for i, vector in enumerate(transformed_document['elements'][element]):
+                transformed_document['elements'][element][i] = ActVector(**vector).model_dump()
+
 
         return transformed_document
+    
+    def transform_acts(self)-> None:
+        not_indexed_acts = self._find_not_indexed_in_questions_acts()
+
+        for act_nro in tqdm.tqdm(not_indexed_acts):
+            raw_act_file_name = self.raw_acts_index._get_filename_data(act_nro)
+            raw_act_file_path = self.raw_acts_index.tree_acts_data_path + raw_act_file_name
+            
+            if os.path.exists(raw_act_file_path):
+                raw_act = self.raw_acts_index._read_json_file(raw_act_file_path)
+                keyworded_act = self._pass_keywords_onto_subtrees(raw_act)
+                transformed_act = self._transform_act(keyworded_act)
+
+                self.transformed_acts_index._update_act_data(act_nro, transformed_act)
+                self.transformed_acts_index._update_act_index([act_nro])
+                
