@@ -4,6 +4,8 @@ import tqdm
 import logging
 
 from etl.common.actindex.tree_act_index import TreeActIndex
+from etl.common.actindex.leaf_node_act_index import LeafNodeActIndex
+
 from etl.common.questionindex.transformed_question_index import TransformedQuestionIndex
 from etl.common.keywordindex.raw_keyword_index import RawKeywordIndex
 from etl.common.keywordindex.transformed_keyword_index import TransformedKeywordIndex
@@ -18,6 +20,7 @@ class Validate():
         self.transformed_question_index = TransformedQuestionIndex()
         self.raw_keyword_index = RawKeywordIndex()
         self.transformed_keyword_index = TransformedKeywordIndex()
+        self.transformed_acts_index = LeafNodeActIndex()
     
     def validate_dataset(self):
         questions_file_name = self.transformed_question_index._get_filename_data()
@@ -217,15 +220,18 @@ class Validate():
                 else:
                     for element in elements:
                         if ' ' in element:
-                            print(f'Error in act {act_data["nro"], {element}}')
+                            logging.error(f'Error in act {act_data["nro"], {element}}')
                         
                         for child in elements[element]['children']:
                             if ' ' in child:
-                                print(f'Error in act {act_data["nro"], {child}}')
+                                logging.error(f'Error in act {act_data["nro"], {child}}')
                             if child not in elements:
-                                print(f'Error in act {act_data["nro"], {child}}')
+                                logging.error(f'Error in act {act_data["nro"], {child}}')
     
     def check_no_backward_references(self, document: dict, root_id: str)-> bool:
+        '''
+        Checks if there are any backward references in the document.
+        '''
         def dfs(node_id, parent_id=None):
 
             node = document.get(node_id, {})
@@ -242,6 +248,9 @@ class Validate():
         return dfs(root_id)
 
     def _validate_act_tree_structure(self):
+        '''
+        Checks if there are any backward references in the documents.
+        '''
         raw_act_index = TreeActIndex()
         act_data_path = raw_act_index.tree_acts_data_path
         for file in tqdm.tqdm(os.listdir(act_data_path)):
@@ -261,4 +270,154 @@ class Validate():
                             if isTraversable:
                                 continue
                             else:
-                                print(f'Error in act {act_data["nro"], {element}}')
+                                logging.error(f'Error in act {act_data["nro"], {element}}')
+
+    def _validate_question_acts(self):
+        '''
+        Validate that all acts in questions have been extracted.
+        '''
+        questions_file_name = self.transformed_question_index._get_filename_data()
+        questions_data_path = self.transformed_question_index.transformed_questions_data_path + questions_file_name
+
+        questions_acts_nros = set()
+
+        with open(questions_data_path, 'r') as f:
+            questions_data = json.load(f)
+            questions = questions_data['questions']
+
+        for question in questions:
+            for act in questions[question]['relatedActs']:
+                questions_acts_nros.add(act['nro'])
+        
+        transformed_acts_index = LeafNodeActIndex()
+        transformed_acts_file_name = transformed_acts_index._get_filename_index()
+        transformed_acts_index_path = transformed_acts_index.leaf_node_acts_index_path + transformed_acts_file_name
+
+        with open(transformed_acts_index_path, 'r') as f:
+            transformed_acts_index_data = json.load(f)
+        
+        transformed_acts_nros = set(transformed_acts_index_data)
+
+        if questions_acts_nros.difference(transformed_acts_nros) != set():
+            return False , len(questions)
+        else:
+            return True , len(questions)
+        
+    def _validate_acts_keywords(self):
+        '''
+        Validate that all keywords have been passed onto act vectors
+        '''
+        raw_act_data_path = self.tree_acts_index.tree_acts_data_path
+        transformed_act_data_path = self.transformed_acts_index.leaf_node_acts_data_path
+
+        for file in os.listdir(raw_act_data_path):
+            keywords_to_check = set()
+            if file.endswith('.json'):
+                with open(raw_act_data_path+file, 'r') as f:
+                    raw_act_data = json.load(f)
+                    raw_act_keywords = raw_act_data['keywords']
+                    raw_act_nro = raw_act_data['nro']
+                
+                for keyword in raw_act_keywords:
+                    keyword_file = self.transformed_keyword_index._get_filename_data(keyword)
+                    if os.path.exists(self.transformed_keyword_index.transformed_keyword_data_path+keyword_file):
+
+                        keywords_to_check.add((keyword['conceptId'], keyword['instanceOfType']))
+
+                transformed_act_file_name = self.transformed_acts_index._get_filename_data(raw_act_nro)
+                transformed_act_keywords = set()
+                if os.path.exists(transformed_act_data_path+transformed_act_file_name):
+                    with open(transformed_act_data_path+transformed_act_file_name, 'r') as f:
+                        transformed_act_data = json.load(f)
+                        transformed_act_elements = transformed_act_data['elements']
+                        for element in transformed_act_elements:
+                            for vector in transformed_act_elements[element]:
+                                for keyword in vector['keywords']:
+                                    transformed_act_keywords.add((keyword['conceptId'], keyword['instanceOfType']))
+
+                    if keywords_to_check.difference(transformed_act_keywords) != set():
+                        logging.error(f'Error in act {raw_act_nro}')
+                        logging.error(f'Raw act keywords: {keywords_to_check}')
+                        logging.error(f'Transformed act keywords: {transformed_act_keywords}')
+                        logging.error(f'Missing keywords: {keywords_to_check.difference(transformed_act_keywords)}')
+                        return False
+        return True
+    
+    def _retrieve_nodes_recursivelly(self, node: str, document:dict) -> set:
+        '''
+        Retrieves all nodes from the document recursively.
+        '''
+        nodes = set()
+        nodes.add(node)
+        for child in document[node]['children']:
+            nodes.update(self._retrieve_nodes_recursivelly(child, document))
+        return nodes
+    
+    def _validate_leaf_node_elements(self):
+        '''
+        Validates all leaf node acts, verifies that all elements from raw act are present in transformed act.
+        '''
+        
+        raw_act_data_path = self.tree_acts_index.tree_acts_data_path
+        transformed_act_data_path = self.transformed_acts_index.leaf_node_acts_data_path
+
+        for file in os.listdir(transformed_act_data_path):
+            if file.endswith('.json'):
+                transformed_elements = set()
+                with open(transformed_act_data_path+file, 'r') as f:
+                    transformed_act_data = json.load(f)
+                    transformed_act_elements = transformed_act_data['elements']
+                    transformed_act_nro = transformed_act_data['nro']
+
+                for element in transformed_act_elements:
+                    for vector in transformed_act_elements[element]:
+                        for node in vector['node_ids']:
+                            transformed_elements.add(node)
+            
+                raw_act_file_name = self.tree_acts_index._get_filename_data(transformed_act_nro)
+                raw_elements = set()
+
+                with open(raw_act_data_path+raw_act_file_name, 'r') as f:
+                    raw_act_data = json.load(f)
+                    raw_act_elements = raw_act_data['elements']
+                    for element in raw_act_elements:
+                        if raw_act_elements[element]['children'] == []:
+                            root_id = self._extract_substrings(element)[0]
+                            if root_id not in raw_elements:
+                                raw_elements.update(self._retrieve_nodes_recursivelly(root_id, raw_act_elements))
+
+                if raw_elements.difference(transformed_elements) != set():
+                    logging.error(f'Error in act {transformed_act_nro}')
+                    logging.error(f'Raw act elements: {raw_elements}')
+                    logging.error(f'Transformed act elements: {transformed_elements}')
+                    logging.error(f'Missing elements: {raw_elements.difference(transformed_elements)}')
+                    return False
+        return True
+
+
+
+    def validate_dataset(self):
+        are_valid_questions , question_count = self._validate_question_acts()
+        if are_valid_questions:
+            logging.info(f'All acts in questions have been extracted, total questions: {question_count}')
+        else:
+            logging.error(f'Not all acts in questions have been extracted')
+        
+        are_all_keywords_passed_onto_acts = self._validate_acts_keywords()
+
+        if are_all_keywords_passed_onto_acts:
+            logging.info(f'All keywords have been passed onto acts')
+        else:
+            logging.error(f'Not all keywords have been passed onto acts')
+
+        are_leaf_node_elements_valid = self._validate_leaf_node_elements()
+
+        if are_leaf_node_elements_valid:
+            logging.info(f'No missing elements in leaf node acts')
+        else:
+            logging.error(f'Missing elements in leaf node acts')
+
+
+        
+
+        
