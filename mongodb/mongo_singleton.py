@@ -1,8 +1,8 @@
-from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
 import json
 
 class MongoSingleton:
-    with open("config.json") as f:
+    with open("mongodb/config.json") as f:
         config = json.load(f)
         f.close()
     uri = config["mongo_db"]["uri"]
@@ -16,8 +16,7 @@ class MongoSingleton:
 
     def __init__(self, uri=uri):
         if not self._client:
-            self._client = MongoClient(uri)
-
+            self._client = AsyncIOMotorClient(uri)
     @property
     def client(self):
         return self._client

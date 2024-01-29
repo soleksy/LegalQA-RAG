@@ -1,7 +1,12 @@
 {
     "mongo_db": {
         "host": "localhost",
-        "port": 27017,
-        "uri": "mongodb://localhost:27017/"
+        "port": 5555,
+        "uri": "mongodb://localhost:5555/"
+    },
+
+    "db_config": {
+        "db_name": "law",
+        "db_path": "/mongodb/data/"
     }
 }
