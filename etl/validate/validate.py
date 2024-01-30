@@ -22,7 +22,7 @@ class Validate():
         self.transformed_keyword_index = TransformedKeywordIndex()
         self.transformed_acts_index = LeafNodeActIndex()
     
-    def validate_dataset(self):
+    def validate_dataset_counts(self):
         questions_file_name = self.transformed_question_index._get_filename_data()
         questions_file_path = self.transformed_question_index.transformed_questions_data_path + questions_file_name
         

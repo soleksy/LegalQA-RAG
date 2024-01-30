@@ -199,6 +199,19 @@ class TransformActs():
         return text_splitter.split_text(text)
 
 
+    def _create_vector(self, act_nro: int, parent_id: str, chunk_id: int, total_chunks: int, parent_tokens: int, text_tokens: int, node_ids: list[str], text: str, keywords: list[str])-> dict:
+        return {
+            'act_nro': act_nro,
+            'parent_id': parent_id,
+            'chunk_id': chunk_id,
+            'total_chunks': total_chunks,
+            'parent_tokens': parent_tokens,
+            'text_tokens': text_tokens,
+            'node_ids': node_ids,
+            'text': text,
+            'keywords': keywords
+        }
+    
     def _get_subtrees(self, root_id: str, document: dict ,_set: set() = set())-> (list[dict],set()):
         '''
         Given a root_id of a document subtree, find all its nodes and return a list of vectors representing the subtrees
@@ -245,33 +258,16 @@ class TransformActs():
 
             if len(subtree) == 1:
                 if get_tokens(subtree[0]['text']) < 512:
-                    vectors.append({
-                        'act_nro': document['nro'],
-                        'parent_id': root_id,
-                        'chunk_id': None,
-                        'total_chunks': None,
-                        'parent_tokens': 0,
-                        'text_tokens': get_openai_tokens(elements[root_id]['text']),
-                        'node_ids': node_ids,
-                        'text': subtree[0]['text'],
-                        'keywords': keywords
-                        })
+                    vectors.append(
+                        self._create_vector(document['nro'], root_id, None, None, 0, get_openai_tokens(subtree[0]['text']), node_ids, subtree[0]['text'], keywords)
+                    )
                 else:
                     num_chunks = (get_tokens(subtree[0]['text']) // 512) + 1
                     texts = self._chunk_text(subtree[0]['text'], num_chunks)
 
                     for text in texts:
-                        vectors.append({
-                            'act_nro': document['nro'],
-                            'parent_id': root_id,
-                            'chunk_id': texts.index(text) + 1,
-                            'total_chunks': len(texts),
-                            'parent_tokens': 0,
-                            'text_tokens': get_openai_tokens(text),
-                            'node_ids': node_ids,
-                            'text': text,
-                            'keywords': keywords
-                            })
+                        vectors.append(
+                            self._create_vector(document['nro'], root_id, texts.index(text) + 1, len(texts), 0, get_openai_tokens(text), node_ids, text, keywords))
             else:
                 concatenated_text  = ' '.join(node['text'] for node in subtree)
                 total_tokens = get_tokens(concatenated_text)
@@ -283,31 +279,13 @@ class TransformActs():
                     texts = self._chunk_text(concatenated_text, num_chunks)
 
                     for text in texts:
-                        vectors.append({
-                            'act_nro': document['nro'],
-                            'parent_id': root_id,
-                            'chunk_id': texts.index(text) + 1,
-                            'total_chunks': len(texts),
-                            'parent_tokens': 0,
-                            'text_tokens': get_openai_tokens(text),
-                            'node_ids': node_ids,
-                            'text': text,
-                            'keywords': keywords
-                            })
+                        vectors.append(
+                            self._create_vector(document['nro'], root_id, texts.index(text) + 1, len(texts), 0, get_openai_tokens(text), node_ids, text, keywords))
                 else:
                     parentless_text = ' '.join(node['text'] for node in subtree[1:])
                     parent_tokens = get_openai_tokens(subtree[0]['text'])
-                    vectors.append({
-                        'act_nro': document['nro'],
-                        'parent_id': root_id,
-                        'chunk_id': None,
-                        'total_chunks': None,
-                        'parent_tokens': parent_tokens,
-                        'text_tokens': get_openai_tokens(parentless_text),
-                        'node_ids': node_ids, 
-                        'text': concatenated_text,
-                        'keywords': keywords
-                        })
+                    vectors.append(
+                        self._create_vector(document['nro'], root_id, None, None, parent_tokens, get_openai_tokens(parentless_text), node_ids, concatenated_text, keywords))
         return vectors , _set
     
 
