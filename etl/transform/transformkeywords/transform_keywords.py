@@ -146,6 +146,14 @@ class TransformKeywords():
         
         return corrected_text
     
+    def _add_clean_unit(self, nro:int, id:str, name:str, stateName:str) -> dict:
+        return {
+            'nro': nro,
+            'id': id,
+            'name': name,
+            'stateName': stateName
+        }
+    
     def _fix_broken_references(self) -> None:
         transformed_keyword_index = TransformedKeywordIndex()
         folder_path = transformed_keyword_index.transformed_keyword_data_path
@@ -180,7 +188,6 @@ class TransformKeywords():
                                     left = self._correct_bracket_errors(left)
                                     left.replace('@' , '')
 
-                                    
                                     right = self._replace_nested_uppercase_roman_with_arabic(right)
                                     right = right.lower()
                                     right = self._correct_bracket_errors(right)
@@ -191,19 +198,11 @@ class TransformKeywords():
                                         logging.info(f'In keyword {file}')
                                     else:
                                         clean_id = left + '-' + right
-                                        clean_units.append({
-                                            'nro': unit['nro'],
-                                            'id': clean_id,
-                                            'name': unit['name'],
-                                            'stateName': unit['stateName']
-                                        })
+                                        clean_units.append(
+                                            self._add_clean_unit(nro=unit['nro'], id=clean_id, name=unit['name'], stateName=unit['stateName']))
                                 else:
-                                    clean_units.append({
-                                        'nro': unit['nro'],
-                                        'id': unit['id'],
-                                        'name': unit['name'],
-                                        'stateName': unit['stateName']
-                                    })
+                                    clean_units.append(
+                                        self._add_clean_unit(nro=unit['nro'], id=unit['id'], name=unit['name'], stateName=unit['stateName']))
                             else:
                                 if unit['id'] not in act_data['elements']:
                                     unit_id  = unit['id']
@@ -216,19 +215,11 @@ class TransformKeywords():
                                         logging.info(f'Act {act_nro} does not contain element {unit_id}')
                                         logging.info(f'In keyword {file}')
                                     else:
-                                        clean_units.append({
-                                            'nro': unit['nro'],
-                                            'id': unit_id,
-                                            'name': unit['name'],
-                                            'stateName': unit['stateName']
-                                        })
+                                        clean_units.append(
+                                            self._add_clean_unit(nro=unit['nro'], id=unit_id, name=unit['name'], stateName=unit['stateName']))
                                 else:
-                                    clean_units.append({
-                                        'nro': unit['nro'],
-                                        'id': unit['id'],
-                                        'name': unit['name'],
-                                        'stateName': unit['stateName']
-                                    })
+                                    clean_units.append(
+                                        self._add_clean_unit(nro=unit['nro'], id=unit['id'], name=unit['name'], stateName=unit['stateName']))
 
                         if len(clean_units) > 0:
                             cleaned_keyword_data[act_nro] = keyword_data[act_nro]
