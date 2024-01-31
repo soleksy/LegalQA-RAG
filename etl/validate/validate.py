@@ -81,6 +81,23 @@ class Validate():
         
         logging.info(f'Number of unique keywords in keywords index: {len(keywords_index_keyword_ids)}')
 
+    def find_keyword_api_errors(self):
+        keywords_folder_path = self.raw_keyword_index.raw_keyword_data_path
+
+        for file in os.listdir(keywords_folder_path):
+            if file.endswith('.json'):
+                with open(keywords_folder_path+file, 'r') as f:
+                    keyword_data = json.load(f)
+
+                    if keyword_data == []:
+                        continue
+                    elif keyword_data['relationData'] == {}:
+                        continue
+                    else:
+                        for unit in keyword_data['relationData']['units']:
+                            if unit['id'] == 'all()':
+                                logging.info(f'Error in keyword {keyword_data["conceptId"]}')
+                                
     def validate_act_keyword_relationship(self):
         acts_folder_path = self.tree_acts_index.tree_acts_data_path
 

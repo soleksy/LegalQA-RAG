@@ -56,22 +56,27 @@ async def main():
     await keyword_extractor.get_keywords(keywords = keywords_from_questions)
     logging.info(f'Extracted keywords')
 
+    #There are errors in the keywords, api. Needs a complex parser to fix them. 1 keyword to fix look for 'all()' in units['id'].
+    #Run the following to find the errors:
+    
+    validate = Validate()
+    validate.find_keyword_api_errors()
+
+    #After cleaning run the following:
+    '''
     logging.info(f'Transforming keywords')
     transform_keywords = TransformKeywords()
     transform_keywords.transform_not_indexed_keywords()
     logging.info(f'Transformed keywords')
-    #There are errors in the keywords, api. Needs a complex parser to fix them. 1 keyword to fix look for 'all()' in units['id'].
-    #TODO add at least an automatic check for files with an api error.
-    #After cleaning run the following:
+
     
-    '''
+    
     logging.info(f'Transforming acts')
     transform_acts = TransformActs()
     transform_acts.transform_acts()
     logging.info(f'Transformed acts')
 
     logging.info(f'Validating')
-    validate = Validate()
     validate.validate_dataset()
     logging.info(f'Validation complete')
     '''
