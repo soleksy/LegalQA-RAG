@@ -15,6 +15,9 @@ GET_QUESTION_URL = os.getenv('GET_QUESTION_URL')
 GET_QUESTION_ACTS_URL = os.getenv('GET_QUESTION_ACTS_URL')
 GET_QUESTION_KEYWORDS_URL = os.getenv('GET_QUESTION_KEYWORDS_URL')
 
+MAX_RETRIES = 3
+RETRY_WAIT_SECONDS = 2
+
 
 class ExtractQuestionsBase(ABC):
 
@@ -25,8 +28,8 @@ class ExtractQuestionsBase(ABC):
         self.payloads = QuestionPayloads()
             
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type((Exception,asyncio.TimeoutError))))
     async def get_question(self, question_nro: int) -> dict:
         '''
@@ -47,8 +50,8 @@ class ExtractQuestionsBase(ABC):
             return None
 
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type((Exception,asyncio.TimeoutError))))
     async def get_question_acts(self, question_nro: int) -> dict:
         '''
@@ -75,8 +78,8 @@ class ExtractQuestionsBase(ABC):
                 return None    
             
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type((Exception,asyncio.TimeoutError))))
     async def get_question_keywords(self, question_id: int) -> dict:
         '''

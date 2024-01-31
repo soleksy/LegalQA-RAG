@@ -18,6 +18,8 @@ dotenv.load_dotenv()
 
 UNITS_BASE_URL= os.getenv('UNITS_BASE_URL')
 
+MAX_RETRIES = 3
+RETRY_WAIT_SECONDS = 2
 
 class TransformQuestions():
     '''
@@ -59,8 +61,8 @@ class TransformQuestions():
     
 
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(asyncio.TimeoutError)))
     async def _is_parsable(self, nro: int) -> bool:
         '''

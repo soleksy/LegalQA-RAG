@@ -20,6 +20,8 @@ dotenv.load_dotenv()
 DOMAINS = os.getenv('DOMAINS')
 GET_REQUEST_URL = os.getenv('GET_REQUEST_URL')
 
+MAX_RETRIES = 3
+RETRY_WAIT_SECONDS = 2
 
 class ExtractQuestionsDomain(ExtractQuestionsBase):
     def __init__(self, sessionManager: SessionManager):
@@ -36,8 +38,8 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         super().__init__(sessionManager)
     
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(asyncio.TimeoutError)))
     async def _get_max_hits(self, domains: list[dict] = None) -> int:
         '''
@@ -60,8 +62,8 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
                 return data['availableHitCount']
 
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(asyncio.TimeoutError)))
     async def _get_question_nros_range(self, start_from: int = 0, batch_size: int = 25, domains:list[dict] = None)-> list[int]:
         '''
@@ -91,8 +93,8 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
             return question_nros
     
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(asyncio.TimeoutError)))
     async def _get_question_nros_all(self, domains: list[dict] = None) -> list[list[int]]:
         '''
@@ -123,8 +125,8 @@ class ExtractQuestionsDomain(ExtractQuestionsBase):
         return missing_nros
     
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(asyncio.TimeoutError)))
     async def get_complete_question(self, question_nro: int) -> dict:
         '''

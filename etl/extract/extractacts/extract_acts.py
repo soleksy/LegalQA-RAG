@@ -27,6 +27,9 @@ GET_CITE_BASE_URL = os.getenv('GET_CITE_BASE_URL')
 
 logging.basicConfig(level=logging.WARNING)
 
+MAX_RETRIES = 3
+RETRY_WAIT_SECONDS = 2
+
 class RetryableHTTPError(Exception):
         """Custom exception class for retryable HTTP errors."""
         pass
@@ -53,8 +56,8 @@ class ExtractActs():
             return act_nros
     
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(Exception)))
     def _get_act_keywords(self, act_id: int) -> list[dict]:
         '''
@@ -149,8 +152,8 @@ class ExtractActs():
             return all_dicts
         
     @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(2),
+    stop=stop_after_attempt(MAX_RETRIES),
+    wait=wait_fixed(RETRY_WAIT_SECONDS),
     retry=(retry_if_exception_type(Exception)))
     async def get_act(self, act_nro: int , link: str) -> TreeAct:
         '''
