@@ -1,7 +1,8 @@
 import json
 
-from mongodb.mongo_singleton import MongoSingleton
 from motor.motor_asyncio import AsyncIOMotorCollection
+
+from mongodb.mongo_singleton import MongoSingleton
 
 
 class BaseDatabase:
@@ -19,5 +20,5 @@ class BaseDatabase:
     async def list_collection_names(self):
         return await self.db.list_collection_names()
     
-    async def get_collection(self, collection: str) -> AsyncIOMotorCollection:
+    def get_collection(self, collection: str) -> AsyncIOMotorCollection:
         return self.db[collection]
