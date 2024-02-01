@@ -3,6 +3,7 @@ import logging
 import datetime
 
 from etl.common.questionindex.question_index_base import QuestionIndexBase
+from models.datamodels.question import Question
 
 class TransformedQuestionIndex(QuestionIndexBase):
     def __init__(self) -> None:
@@ -27,7 +28,25 @@ class TransformedQuestionIndex(QuestionIndexBase):
             return '_'.join(str(list(d.values())[0]) for d in domains) + '_transformed_data.json'
         else:
             return 'all_transformed_data.json'
+    
+    def _retrieve_questions(self, domains: list[dict] = None) -> list[dict]:
+        '''
+        Given a list of domains, return all the transformed questions.
+        '''
+
+        file_name = self._get_filename_data(domains=domains)
+        file_path = self.transformed_questions_data_path+file_name
+
+        questions = []
+        if os.path.exists(file_path):
+            data = self._read_json_file(file_path)
+            for question in data['questions']:
+                questions.append(Question(**data['questions'][question]))
+        else:
+            return []
         
+        return questions
+    
     def _find_missing_nros(self, nro_list: list[str], domains: list[dict] = None) -> list[str]:
         '''
         Given a list of question_nros, check if the index of transformed questions exists and return only not indexed nros.
