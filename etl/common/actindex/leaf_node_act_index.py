@@ -1,7 +1,7 @@
 import os
 
 from etl.common.actindex.act_index_base import ActIndexBase
-
+from models.datamodels.leaf_act import LeafAct
 
 class LeafNodeActIndex(ActIndexBase):
     def __init__(self):
@@ -59,6 +59,27 @@ class LeafNodeActIndex(ActIndexBase):
             return self._read_json_file(file_path)
         else:
             return []
+        
+    def _retrieve_leaf_acts(self) -> list[dict]:
+        folder_path = self.leaf_node_acts_data_path
+        
+        single_act = {}
+        act_list = []
+        for file in os.listdir(folder_path):
+            if file.endswith('.json'):
+                file_path = folder_path+file
+                data = self._read_json_file(file_path)
+
+                single_act['nro'] = data['nro']
+                single_act['title'] = data['title']
+                single_act['actLawType'] = data['actLawType']
+                single_act['citeLink'] = data['citeLink']
+                single_act['reconstruct'] = data['reconstruct']
+                
+            act_list.append(LeafAct(**single_act))
+        
+        return act_list
+
 
     def _validate_act_index(self) -> bool:
         index_file_name = self._get_filename_index()
