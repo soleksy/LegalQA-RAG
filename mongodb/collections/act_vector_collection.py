@@ -44,3 +44,16 @@ class VectorActCollection(BaseDatabase):
     async def add_act_vectors(self, act_vectors: list[ActVector]):
         for act_vector in tqdm.tqdm(act_vectors):
             await self.add_act_vector(act_vector)
+
+    async def scroll_all(self , batch_size: int = 100):
+        total_docs = await self.get_number_of_documents()
+        skip = 0
+        
+        while skip < total_docs:
+            cursor = self.collection.find().skip(skip).limit(batch_size)
+
+            batch = await cursor.to_list(length=batch_size)
+            
+            yield batch
+            skip += batch_size
+        

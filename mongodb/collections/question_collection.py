@@ -41,3 +41,15 @@ class QuestionCollection(BaseDatabase):
     
     async def get_question(self, nro:int):
         return await self.collection.find_one({"nro": nro})
+    
+    async def scroll_all(self , batch_size: int = 100):
+        total_docs = await self._get_number_of_documents()
+        skip = 0
+        
+        while skip < total_docs:
+            cursor = self.collection.find().skip(skip).limit(batch_size)
+
+            batch = await cursor.to_list(length=batch_size)
+            
+            yield batch
+            skip += batch_size
