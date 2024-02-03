@@ -1,0 +1,17 @@
+{
+    "qdrant_db": {
+    "port" : 6333,
+    "host" : "localhost"
+    },
+
+    "collections": {
+        "questions": {
+            "name" : "questions",
+            "vector_size": 1024
+        },
+        "acts" : {
+            "name" : "acts",
+            "vector_size": 1024
+        }
+    }
+}
