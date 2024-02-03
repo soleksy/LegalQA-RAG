@@ -161,3 +161,4 @@ cython_debug/
 
 data/**/*.json
 mongodb/data/**/*
+qdrantdb/qdrant_storage/**/*
