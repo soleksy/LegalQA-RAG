@@ -3,7 +3,7 @@ import tqdm
 import logging
 
 from mongodb.base_database import BaseDatabase
-from mongodb.collections.act_vector_collection import VectorActCollection
+from mongodb.collections.mongo_act_vector_collection import MongoVectorActCollection
 from etl.common.actindex.leaf_node_act_index import LeafNodeActIndex
 
 logging.basicConfig(level=logging.INFO)
@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 class LoadActVectors(BaseDatabase):
     def __init__(self):
         super().__init__()
-        self.collection: VectorActCollection = None
+        self.collection: MongoVectorActCollection = None
         self.leaf_act_index = LeafNodeActIndex()
         
     @classmethod
     async def create(cls) -> 'LoadActVectors':
         instance = cls()
-        instance.collection = await VectorActCollection.create()
+        instance.collection = await MongoVectorActCollection.create()
         return instance
     
     async def load_act_vectors(self) -> None:

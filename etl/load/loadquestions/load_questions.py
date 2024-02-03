@@ -1,9 +1,7 @@
 import tqdm
 import logging
 
-from motor.motor_asyncio import AsyncIOMotorCollection
-
-from mongodb.collections.question_collection import QuestionCollection
+from mongodb.collections.mongo_question_collection import MongoQuestionCollection
 from etl.common.questionindex.transformed_question_index import TransformedQuestionIndex
 
 
@@ -12,14 +10,14 @@ logger = logging.getLogger(__name__)
 
 class LoadQuestions():
     def __init__(self, domains: list[dict] = None):
-        self.collection: QuestionCollection = None
+        self.collection: MongoQuestionCollection = None
         self.question_index = TransformedQuestionIndex()
         self.domains = domains
 
     @classmethod
     async def create(cls)->'LoadQuestions':
         instance = cls()
-        instance.collection = await QuestionCollection.create()
+        instance.collection = await MongoQuestionCollection.create()
         return instance
     
     async def load_questions(self) -> None:

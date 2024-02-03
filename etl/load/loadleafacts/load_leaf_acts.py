@@ -1,9 +1,8 @@
 import tqdm
 import logging
 
-from models.datamodels.leaf_act import LeafAct
 from mongodb.base_database import BaseDatabase
-from mongodb.collections.leaf_act_collection import LeafActCollection
+from mongodb.collections.mongo_leaf_act_collection import MongoLeafActCollection
 from etl.common.actindex.leaf_node_act_index import LeafNodeActIndex
 
 
@@ -13,13 +12,13 @@ logger = logging.getLogger(__name__)
 class LoadLeafActs(BaseDatabase):
     def __init__(self):
         super().__init__()
-        self.collection: LeafActCollection = None
+        self.collection: MongoLeafActCollection = None
         self.leaf_act_index = LeafNodeActIndex()
 
     @classmethod
     async def create(cls) -> 'LoadLeafActs':
         instance = cls()
-        instance.collection = await LeafActCollection.create()
+        instance.collection = await MongoLeafActCollection.create()
         return instance
 
     async def load_leaf_acts(self) -> None:

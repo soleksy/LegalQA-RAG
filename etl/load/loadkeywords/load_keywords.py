@@ -1,9 +1,8 @@
 import tqdm
 import logging
 
-from models.datamodels.keyword import Keyword
 from mongodb.base_database import BaseDatabase
-from mongodb.collections.keyword_collection import KeywordCollection
+from mongodb.collections.mongo_keyword_collection import MongoKeywordCollection
 from etl.common.keywordindex.transformed_keyword_index import TransformedKeywordIndex
 
 logging.basicConfig(level=logging.INFO)
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 class LoadKeywords(BaseDatabase):
     def __init__(self,domains: list[dict] = None):
         super().__init__()
-        self.collection:KeywordCollection = None
+        self.collection:MongoKeywordCollection = None
         self.keyword_index = TransformedKeywordIndex()
         self.domains = domains
     
@@ -20,7 +19,7 @@ class LoadKeywords(BaseDatabase):
     @classmethod
     async def create(cls, domains: list[dict] = None) -> 'LoadKeywords':
         instance = cls(domains)
-        instance.collection = await KeywordCollection.create()
+        instance.collection = await MongoKeywordCollection.create()
         return instance
     
     async def load_keywords(self) -> None:

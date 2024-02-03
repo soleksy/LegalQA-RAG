@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class KeywordCollection(BaseDatabase):
+class MongoKeywordCollection(BaseDatabase):
 
     def __init__(self, domains: list[dict] = None):
         super().__init__()
