@@ -315,23 +315,29 @@ class TransformActs():
                         root_id = self._fix_element(root_id)
 
                         if root_id not in document['elements']:
-                           logging.error(f'Root id: {root_id} not found in {document["nro"]}')
+                            logging.error(f'Root id: {root_id} not found in {document["nro"]}')
 
                     vectors, _set = self._get_subtrees(root_id, document , _set)
-                    transformed_document['elements'][root_id] = vectors
+                    
+                    filtered_vectors = [vector for vector in vectors if '(uchylony)' not in vector['text']]
+                    
+                    if len(filtered_vectors) == 0:
+                        continue
 
-                    if len(vectors) == 1:
+                    transformed_document['elements'][root_id] = filtered_vectors
+                    
+                    if len(filtered_vectors) == 1:
 
                         transformed_document['reconstruct'][root_id] = {
                             'cite_id': root_id,
                             'text': document['elements'][root_id]['text']
                             }
                         
-                        vectors[0]['reconstruct_id'] = root_id
+                        filtered_vectors[0]['reconstruct_id'] = root_id
                         
-                    elif len(vectors) > 1 and len(vectors[0]['node_ids']) == 1:
+                    elif len(filtered_vectors) > 1 and len(filtered_vectors[0]['node_ids']) == 1:
 
-                        for vector in vectors:
+                        for vector in filtered_vectors:
                             transformed_document['reconstruct'][f'{root_id}_{vector["chunk_id"]}'] = {
                                 'cite_id': root_id,
                                 'text': vector['text'],
@@ -345,7 +351,7 @@ class TransformActs():
                             'text': document['elements'][root_id]['text']
                         }
                         
-                        for vector in vectors:
+                        for vector in filtered_vectors:
                             if vector['chunk_id'] is None:
                                 next_node = vector['node_ids'][1]
 
