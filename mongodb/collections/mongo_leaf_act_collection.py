@@ -30,6 +30,9 @@ class MongoLeafActCollection(BaseDatabase):
     async def get_leaf_act(self, nro: int):
         return await self.collection.find_one({"nro": nro})
     
+    async def get_leaf_acts(self, nros: list[int]):
+        return await self.collection.find({"nro": {"$in": nros}}).to_list(length=None)
+    
     async def add_leaf_act(self, leaf_act: LeafAct):
         try:
             await self.collection.insert_one(leaf_act.model_dump())
@@ -42,3 +45,6 @@ class MongoLeafActCollection(BaseDatabase):
     async def add_leaf_acts(self, leaf_acts: list[LeafAct]):
         for leaf_act in tqdm.tqdm(leaf_acts):
             await self.add_leaf_act(leaf_act)
+    
+    async def delete_leaf_acts_collection(self):
+        await self.collection.drop()

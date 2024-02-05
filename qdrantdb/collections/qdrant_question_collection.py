@@ -46,6 +46,10 @@ class QdrantQuestionCollection(QdrantBaseDatabase):
             points.append(point)
         await self.client.upsert(collection_name=self.collection_name, points = points)
 
+
+    async def search_questions(self, limit: int, vector: list[float]) -> list[Record]:
+        response = await self.client.search(collection_name=self.collection_name, query_vector=vector, limit=limit, with_payload=True)
+        return response
     
     async def retrieve_question(self, question_nro: int) -> Record:
         response = await self.client.retrieve(collection_name=self.collection_name, ids = [question_nro])
