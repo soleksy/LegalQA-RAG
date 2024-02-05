@@ -1,3 +1,4 @@
+import os
 import tqdm
 import logging
 
@@ -27,7 +28,7 @@ class LoadLeafActs(BaseDatabase):
     async def validate_loaded_data(self) -> bool:
         index = self.leaf_act_index.leaf_node_acts_data_path
 
-        for leaf_act in tqdm.tqdm(index):
+        for leaf_act in tqdm.tqdm(os.listdir(index)):
             if leaf_act.endswith('.json'):
                 nro = int(leaf_act.split('_')[0])
                 leaf_act = await self.collection.get_leaf_act(nro)
