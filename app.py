@@ -1,7 +1,8 @@
 import os
 import json
-import dotenv
 import torch
+import dotenv
+import uvicorn
 import asyncio
 import logging
 import tiktoken
@@ -9,7 +10,9 @@ import tiktoken
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, Depends, HTTPException, status, Request
+
 from typing import Dict, List
+from typing_extensions import TypedDict
 from contextlib import asynccontextmanager
 from sentence_transformers import SentenceTransformer
 
@@ -20,9 +23,14 @@ from qdrantdb.collections.qdrant_act_collection import QdrantActCollection
 encoding = tiktoken.get_encoding('cl100k_base')
 get_openai_tokens = lambda text: len(encoding.encode(text))
 
+
 dotenv.load_dotenv()
 
 STATIC_API_KEY = os.getenv("STATIC_API_KEY")
+
+class Query(TypedDict):
+    nro: str
+    queries: List[str]
 
 async def get_qdrant_act_collection():
     act_collection = await QdrantActCollection.create()
@@ -39,7 +47,7 @@ async def get_mongo_leaf_act_collection():
 async def get_model():
     model = SentenceTransformer("sdadas/mmlw-retrieval-roberta-large")
     model = model.to("cuda" if torch.cuda.is_available() else "cpu")
-    return 
+    return model
 
 functions = {}
 
@@ -68,7 +76,7 @@ def validate_api_key(request: Request):
             detail="Invalid or missing API Key"
         )
 
-@app.get("/acts")
+@app.get("/acts/search")
 async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_key)) -> List[Dict]:
     if valid:
         vector = functions['model'].encode('zapytanie: ' + query, convert_to_tensor=False, show_progress_bar=False)
@@ -96,17 +104,19 @@ async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_k
     
 
 @app.post("/acts/retrieve")
-async def retrieve_act_parts(queries: Dict[str, List[str]], valid: bool = Depends(validate_api_key)) -> List[Dict]:
+async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depends(validate_api_key)) -> List[Dict]:
 
     if valid:
+        queries = queries['queries']
         nros_in_order = []
         queries_in_order = []
         encode_in_order = []
-        for nro, queries_list in queries.items():
-            for query in queries_list:
-                encode_in_order.append('zapytanie: ' + query)
-                nros_in_order.append(int(nro))
-                queries_in_order.append(query)
+
+        for query in queries:
+            nros_in_order.append(int(query['nro']))
+            for q in query['queries']:
+                encode_in_order.append('zapytanie: ' + q)
+                queries_in_order.append(q)
 
         # Get vectors for each query
         vectors = functions['model'].encode(encode_in_order, convert_to_tensor=False, show_progress_bar=False) 
@@ -146,7 +156,7 @@ async def retrieve_act_parts(queries: Dict[str, List[str]], valid: bool = Depend
             to_return.append({
                 "nro": nro,
                 "title": leaf_act_map[nro]['title'],
-                "citeLink" : leaf_act_map[nro]['citeLink'],
+                "citeLink": leaf_act_map[nro]['citeLink'],
                 "query": query,
                 "data": elements_to_return
             })
@@ -157,12 +167,12 @@ async def retrieve_act_parts(queries: Dict[str, List[str]], valid: bool = Depend
         return {"error": "Invalid API key"}
 
 @app.get("/search")
-async def get_legal_information(query: str , valid: bool = Depends(validate_api_key)) -> List[Dict]:
+async def get_legal_information(query: str, valid: bool = Depends(validate_api_key)):
     if valid:    
         acts = set()
         
         vector = functions['model'].encode('zapytanie: '+query, convert_to_tensor=False, show_progress_bar=False)
-        questions = await functions["qdrant_question_collection"].search_questions(limit=20, vector=vector)
+        questions = await functions["qdrant_question_collection"].search_questions(limit=100, vector=vector)
 
         for question in questions:
             for related_act in question.payload['relatedActs']:
@@ -203,6 +213,7 @@ async def get_legal_information(query: str , valid: bool = Depends(validate_api_
             curr_act = {
                 "nro": nro,
                 "title": leaf_act_map[nro]['title'],
+                "citeLink": leaf_act_map[nro]['citeLink'],
                 "data": elements_to_return
             }
 
@@ -221,5 +232,4 @@ async def privacy_policy(request: Request):
     return templates.TemplateResponse("privacy_policy.html", {"request": request})
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8080)
