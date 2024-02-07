@@ -46,7 +46,11 @@ class QdrantActCollection(QdrantBaseDatabase):
             points.append(point)
         await self.client.upsert(collection_name=self.collection_name, points = points)
 
-    async def search_acts(self, limit: int, act_nros: list[int], vector: list[float]) -> list[Record]:
+    async def search_acts(self, limit:int , vector: list[float]) -> list[Record]:
+        response = await self.client.search(collection_name=self.collection_name, query_vector=vector, limit=limit, with_payload=True)
+        return response
+    
+    async def search_acts_filtered(self, limit: int, act_nros: list[int], vector: list[float]) -> list[Record]:
         return await self.client.search(
         collection_name="acts",
         query_vector=vector,

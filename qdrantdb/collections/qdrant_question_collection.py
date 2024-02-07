@@ -51,6 +51,16 @@ class QdrantQuestionCollection(QdrantBaseDatabase):
         response = await self.client.search(collection_name=self.collection_name, query_vector=vector, limit=limit, with_payload=True)
         return response
     
+    async def search_questions_excluding_ids(self, limit: int, vector: list[float], exclude_ids: list[int]) -> list[Record]:
+        return await self.client.search(
+        collection_name=self.collection_name,
+        query_vector=vector,
+        limit=limit,
+        with_payload=True,
+        search_params=models.SearchParams(exact=False),
+        query_filter=models.Filter(must_not=[models.FieldCondition(key="nro",match=models.MatchAny(any=exclude_ids))])
+    )
+
     async def retrieve_question(self, question_nro: int) -> Record:
         response = await self.client.retrieve(collection_name=self.collection_name, ids = [question_nro])
         return response
