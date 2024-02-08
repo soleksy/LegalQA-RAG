@@ -50,9 +50,29 @@ class QdrantActCollection(QdrantBaseDatabase):
         response = await self.client.search(collection_name=self.collection_name, query_vector=vector, limit=limit, with_payload=True)
         return response
     
+    async def search_acts_keyword_filtered(self, limit: int, act_nros: list[int] , keywords :list[dict] , vector: list[float])-> list[Record]:
+        concept_id_set = list(set([keyword['conceptId'] for keyword in keywords]))
+        instance_of_type_set = list(set([keyword['instanceOfType'] for keyword in keywords]))
+
+        return await self.client.search(
+        collection_name=self.collection_name,
+        query_vector=vector,
+        limit=limit,
+        with_payload=True,
+        search_params=models.SearchParams(exact=False),
+        query_filter=models.Filter(must=[
+            models.NestedCondition(nested=models.Nested(key="keywords", filter=models.Filter(
+                must=[
+                models.FieldCondition(key="conceptId", match=models.MatchAny(any=concept_id_set)),
+                models.FieldCondition(key="instanceOfType", match=models.MatchAny(any=instance_of_type_set))
+                ]))),
+            models.FieldCondition(key="act_nro",match=models.MatchAny(any=act_nros))
+            ])
+        )
+
     async def search_acts_filtered(self, limit: int, act_nros: list[int], vector: list[float]) -> list[Record]:
         return await self.client.search(
-        collection_name="acts",
+        collection_name=self.collection_name,
         query_vector=vector,
         limit=limit,
         with_payload=True,
