@@ -151,12 +151,12 @@ async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depen
             
             for element in act_elements:
                 if element in curr_elements:
+                    act_elements[element]['cite_id'] = leaf_act_map[nro]['citeLink'] + act_elements[element]['cite_id']
                     elements_to_return.append(act_elements[element])
             
             to_return.append({
                 "nro": nro,
                 "title": leaf_act_map[nro]['title'],
-                "citeLink": leaf_act_map[nro]['citeLink'],
                 "query": query,
                 "data": elements_to_return
             })
@@ -168,17 +168,17 @@ async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depen
 
 @app.get("/search")
 async def get_legal_information(query: str, valid: bool = Depends(validate_api_key)):
-    if valid:    
+    if valid:
         acts = set()
         
         vector = functions['model'].encode('zapytanie: '+query, convert_to_tensor=False, show_progress_bar=False)
-        questions = await functions["qdrant_question_collection"].search_questions(limit=100, vector=vector)
+        questions = await functions["qdrant_question_collection"].search_questions(limit=5, vector=vector)
 
         for question in questions:
             for related_act in question.payload['relatedActs']:
                 acts.add(related_act['nro'])
         
-        act_parts = await functions['qdrant_act_collection'].search_acts(limit=60, act_nros=list(acts), vector=vector)
+        act_parts = await functions['qdrant_act_collection'].search_acts_filtered(limit=60, act_nros=list(acts), vector=vector)
         leaf_acts = await functions['mongo_leaf_act_collection'].get_leaf_acts(nros=list(acts))
 
         
@@ -208,12 +208,12 @@ async def get_legal_information(query: str, valid: bool = Depends(validate_api_k
             elements_to_return = []
             for element in act_elements:
                 if element in curr_elements:
+                    act_elements[element]['cite_id'] = leaf_act_map[nro]['citeLink'] + act_elements[element]['cite_id'] 
                     elements_to_return.append(act_elements[element])
 
             curr_act = {
                 "nro": nro,
-                "title": leaf_act_map[nro]['title'],
-                "citeLink": leaf_act_map[nro]['citeLink'],
+                "title": leaf_act_map[nro]['title'],                
                 "data": elements_to_return
             }
 
