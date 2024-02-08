@@ -83,7 +83,8 @@ class BaseEval:
         
         logger.warning(f"Total cite id hit rate: {total_cite_id_hit_rate/len(questions)}")
     
-    async def evaluate_two_step(self) -> None:
+
+    async def evaluate_two_step(self , keyword_filter: bool) -> None:
         await self.qdrant_act_collection.client.create_payload_index(
             collection_name=self.qdrant_act_collection.collection_name,
             field_name='act_nro',
@@ -101,15 +102,17 @@ class BaseEval:
 
         act_vectors_returned = 100
         total_cite_id_hit_rate_second_search = 0
+        
 
         for question in tqdm.tqdm(questions):
+            keyword_filter = []
             question_related_acts = set([related_act['nro'] for related_act in question['relatedActs']])
             question_cite_ids = set([(relation_data['nro'],relation_data['id']) for related_act in question['relatedActs'] for relation_data in related_act['relationData']])
             question_keywords = set([(keyword['conceptId'], keyword['instanceOfType']) for keyword in question['keywords']])
 
             
             question_vector = self.model.encode('zapytanie: ' + question['title'], convert_to_tensor=False, show_progress_bar=False)
-            related_questions = await self.qdrant_question_collection.search_questions_excluding_ids(limit=5, exclude_ids=[question['nro']], vector=question_vector)
+            related_questions = await self.qdrant_question_collection.search_questions_excluding_ids(limit=7, exclude_ids=[question['nro']], vector=question_vector)
             
             results_related_acts = set()
             results_cite_ids = set()
@@ -121,6 +124,7 @@ class BaseEval:
                     for relation_data in related_act['relationData']:
                         results_cite_ids.add((relation_data['nro'], relation_data['id']))
                 for keyword in related_question.payload['keywords']:
+                    keyword_filter.append(keyword)
                     results_keywords.add((keyword['conceptId'], keyword['instanceOfType']))
 
             act_intersection = question_related_acts.intersection(results_related_acts)
@@ -139,8 +143,11 @@ class BaseEval:
             total_cite_id_hit_rate += hit_rate_cite_ids
             total_keyword_hit_rate += hit_rate_keywords
             
-            second_results = await self.qdrant_act_collection.search_acts_filtered(limit=act_vectors_returned, vector=question_vector , act_nros=list(results_related_acts))
-
+            if keyword_filter:
+                second_results = await self.qdrant_act_collection.search_acts_keyword_filtered(limit=act_vectors_returned, vector=question_vector, keywords=keyword_filter ,act_nros=list(results_related_acts))
+            else:
+                second_results = await self.qdrant_act_collection.search_acts_filtered(limit=act_vectors_returned, vector=question_vector, act_nros=list(results_related_acts))
+            
             second_results_cite_ids = set()
             for cite_vector in second_results:
                 for node_id in cite_vector.payload['node_ids']:
