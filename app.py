@@ -20,6 +20,10 @@ from mongodb.collections.mongo_leaf_act_collection import MongoLeafActCollection
 from qdrantdb.collections.qdrant_question_collection import QdrantQuestionCollection
 from qdrantdb.collections.qdrant_act_collection import QdrantActCollection
 
+from models.datamodels.question import Question
+from models.datamodels.act_vector import ActVector
+from models.datamodels.leaf_act import LeafAct
+
 encoding = tiktoken.get_encoding('cl100k_base')
 get_openai_tokens = lambda text: len(encoding.encode(text))
 
@@ -54,9 +58,9 @@ functions = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     functions['model'] = await get_model()
-    functions['qdrant_question_collection'] : QdrantQuestionCollection  = await get_qdrant_question_collection()
-    functions['qdrant_act_collection'] : QdrantActCollection = await get_qdrant_act_collection()
-    functions['mongo_leaf_act_collection'] : MongoLeafActCollection = await get_mongo_leaf_act_collection()
+    functions['qdrant_question_collection']   = await get_qdrant_question_collection()
+    functions['qdrant_act_collection']  = await get_qdrant_act_collection()
+    functions['mongo_leaf_act_collection']  = await get_mongo_leaf_act_collection()
 
     yield
 
@@ -86,13 +90,15 @@ async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_k
         acts_to_return = []
 
         for question in questions:
-            for related_act in question.payload['relatedActs']:
-                if related_act['nro'] not in acts:
-                    acts.add(related_act['nro'])
+            question = Question(**question.payload)
+
+            for related_act in question.relatedActs:
+                if related_act.nro not in acts:
+                    acts.add(related_act.nro)
                     if len(acts_to_return) < 5:
                         acts_to_return.append({
-                            "nro": related_act['nro'],
-                            "title": related_act['title']
+                            "nro": related_act.nro,
+                            "title": related_act.title
                         })
                     else:
                         break
@@ -123,7 +129,7 @@ async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depen
         
         search_tasks = []
         for vector, nro in zip(vectors, nros_in_order):
-            search_tasks.append(functions["qdrant_act_collection"].search_acts(limit=5, act_nros=[nro], vector=vector))
+            search_tasks.append(functions["qdrant_act_collection"].search_acts_filtered(limit=5, act_nros=[nro], vector=vector))
 
         # Get act parts for each query
         act_parts = await asyncio.gather(*search_tasks)
@@ -132,31 +138,33 @@ async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depen
         leaf_acts = await functions['mongo_leaf_act_collection'].get_leaf_acts(nros=nros_in_order)
 
         # Map nros to leaf acts
-        leaf_act_map = {}
+        leaf_act_map : Dict[int, LeafAct] = {}
         for leaf_act in leaf_acts:
-            leaf_act_map[leaf_act['nro']] = leaf_act
+            leaf_act = LeafAct(**leaf_act)
+            leaf_act_map[leaf_act.nro] = leaf_act
 
         to_return = []
         for nro, act_parts, query in zip(nros_in_order, act_parts, queries_in_order):
             curr_elements = set()
             
             for act in act_parts:
-                if act.payload['parent_id'] not in curr_elements:
-                    curr_elements.add(act.payload['parent_id'])
-                if act.payload['reconstruct_id'] not in curr_elements:
-                    curr_elements.add(act.payload['reconstruct_id'])
+                act = ActVector(**act.payload)
+                if act.parent_id not in curr_elements:
+                    curr_elements.add(act.parent_id)
+                if act.reconstruct_id not in curr_elements:
+                    curr_elements.add(act.reconstruct_id)
             
-            act_elements = leaf_act_map[nro]['reconstruct']
+            act_elements = leaf_act_map[nro].reconstruct
             elements_to_return = []
             
             for element in act_elements:
                 if element in curr_elements:
-                    act_elements[element]['cite_id'] = leaf_act_map[nro]['citeLink'] + act_elements[element]['cite_id']
-                    elements_to_return.append(act_elements[element])
+                    act_elements[element].cite_id = leaf_act_map[nro].citeLink + act_elements[element].cite_id
+                    elements_to_return.append(act_elements[element].model_dump())
             
             to_return.append({
                 "nro": nro,
-                "title": leaf_act_map[nro]['title'],
+                "title": leaf_act_map[nro].title,
                 "query": query,
                 "data": elements_to_return
             })
@@ -175,8 +183,9 @@ async def get_legal_information(query: str, valid: bool = Depends(validate_api_k
         questions = await functions["qdrant_question_collection"].search_questions(limit=5, vector=vector)
 
         for question in questions:
-            for related_act in question.payload['relatedActs']:
-                acts.add(related_act['nro'])
+            question = Question(**question.payload)
+            for related_act in question.relatedActs:
+                acts.add(related_act.nro)
         
         act_parts = await functions['qdrant_act_collection'].search_acts_filtered(limit=60, act_nros=list(acts), vector=vector)
         leaf_acts = await functions['mongo_leaf_act_collection'].get_leaf_acts(nros=list(acts))
@@ -184,18 +193,20 @@ async def get_legal_information(query: str, valid: bool = Depends(validate_api_k
         
         id_set = set()
         to_return = []
-        leaf_act_map = {}
+        leaf_act_map : Dict[int, LeafAct] = {}
 
         for leaf_act in leaf_acts:
-            leaf_act_map[leaf_act['nro']] = leaf_act
+            leaf_act = LeafAct(**leaf_act)
+            leaf_act_map[leaf_act.nro] = leaf_act
 
         found_nros = set()    
         for act in act_parts:
-            found_nros.add(act.payload['act_nro'])
-            if (act.payload['act_nro'], act.payload['parent_id']) not in id_set:
-                id_set.add((act.payload['act_nro'],act.payload['parent_id']))
-            if (act.payload['act_nro'] ,act.payload['reconstruct_id']) not in id_set:
-                id_set.add((act.payload['act_nro'],act.payload['reconstruct_id']))
+            act = ActVector(**act.payload)
+            found_nros.add(act.act_nro)
+            if (act.act_nro, act.parent_id) not in id_set:
+                id_set.add((act.act_nro, act.parent_id))
+            if (act.act_nro ,act.reconstruct_id) not in id_set:
+                id_set.add((act.act_nro,act.reconstruct_id))
                 
 
         for nro in list(found_nros):
@@ -204,16 +215,16 @@ async def get_legal_information(query: str, valid: bool = Depends(validate_api_k
                 if id[0] == nro:
                     curr_elements.add(id[1])
             
-            act_elements = leaf_act_map[nro]['reconstruct']
+            act_elements = leaf_act_map[nro].reconstruct
             elements_to_return = []
             for element in act_elements:
                 if element in curr_elements:
-                    act_elements[element]['cite_id'] = leaf_act_map[nro]['citeLink'] + act_elements[element]['cite_id'] 
-                    elements_to_return.append(act_elements[element])
+                    act_elements[element].cite_id = leaf_act_map[nro].citeLink + act_elements[element].cite_id
+                    elements_to_return.append(act_elements[element].model_dump())
 
             curr_act = {
                 "nro": nro,
-                "title": leaf_act_map[nro]['title'],                
+                "title": leaf_act_map[nro].title,                
                 "data": elements_to_return
             }
 
