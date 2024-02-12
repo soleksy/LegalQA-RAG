@@ -4,6 +4,7 @@ from qdrant_client import models
 from qdrant_client.models import Record 
 
 from models.datamodels.act_vector import ActVector
+from models.datamodels.keyword import Keyword
 from qdrantdb.qdrant_base_database import QdrantBaseDatabase
 
 
@@ -50,9 +51,9 @@ class QdrantActCollection(QdrantBaseDatabase):
         response = await self.client.search(collection_name=self.collection_name, query_vector=vector, limit=limit, with_payload=True)
         return response
     
-    async def search_acts_keyword_filtered(self, limit: int, act_nros: list[int] , keywords :list[dict] , vector: list[float])-> list[Record]:
-        concept_id_set = list(set([keyword['conceptId'] for keyword in keywords]))
-        instance_of_type_set = list(set([keyword['instanceOfType'] for keyword in keywords]))
+    async def search_acts_keyword_filtered(self, limit: int, act_nros: list[int] , keywords :list[Keyword] , vector: list[float])-> list[Record]:
+        concept_id_set = list(set([keyword.conceptId for keyword in keywords]))
+        instance_of_type_set = list(set([keyword.instanceOfType for keyword in keywords]))
 
         return await self.client.search(
         collection_name=self.collection_name,

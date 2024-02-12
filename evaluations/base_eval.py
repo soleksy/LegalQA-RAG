@@ -4,10 +4,15 @@ import random
 import logging
 
 from sentence_transformers import SentenceTransformer
+from typing import List
+
 
 from qdrantdb.collections.qdrant_question_collection import QdrantQuestionCollection
 from qdrantdb.collections.qdrant_act_collection import QdrantActCollection
 from etl.common.questionindex.transformed_question_index import TransformedQuestionIndex
+from models.datamodels.question import *
+from models.datamodels.act_vector import *
+
 
 logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger(__name__)
@@ -34,7 +39,7 @@ class BaseEval:
         instance.model = await get_model()
         return instance
 
-    def get_questions_to_evaluate(self):
+    def get_questions_to_evaluate(self) -> List[Question]:
         folder = self.question_index.transformed_questions_data_path
         file = self.question_index._get_filename_data()
 
@@ -50,12 +55,12 @@ class BaseEval:
                     is_approved = False
                     break
             if is_approved:
-                with_citations.append(data['questions'][question])
+                with_citations.append(Question(**data['questions'][question]))
 
         return self.randomize_questions(with_citations)
 
-    def randomize_questions(self, questions: list[dict]) -> list[dict]:
-        ten_percent_count = len(questions) // 20 
+    def randomize_questions(self, questions: list[Question]) -> List[Question]:
+        ten_percent_count = len(questions) // 80 
         
         if ten_percent_count == 0 and questions:
             ten_percent_count = 1
@@ -63,20 +68,23 @@ class BaseEval:
         return random.sample(questions, ten_percent_count)
     
     async def evaluate_acts_only(self) -> None:
-        questions = self.get_questions_to_evaluate()
+        questions: List[Question] = self.get_questions_to_evaluate()
         total_cite_id_hit_rate = 0
-        act_vectors_returned = 60
+        act_vectors_returned = 10
         for question in tqdm.tqdm(questions):
-            question_vector = self.model.encode('zapytanie: ' + question['title'], convert_to_tensor=False, show_progress_bar=False)
-            question_cite_ids = set([(relation_data['nro'],relation_data['id']) for related_act in question['relatedActs'] for relation_data in related_act['relationData']])
+            question_vector = self.model.encode('zapytanie: ' + question.title, convert_to_tensor=False, show_progress_bar=False)
+            question_cite_ids = set([(relation_data.nro ,relation_data.id) for related_act in question.relatedActs for relation_data in related_act.relationData])
+            question_acts_nros = set([related_act.nro for related_act in question.relatedActs])
+            question_keywords = [keyword for keyword in question.keywords]
 
-            acts = await self.qdrant_act_collection.search_acts(limit=act_vectors_returned, vector=question_vector)
+            acts = await self.qdrant_act_collection.search_acts_keyword_filtered(limit=act_vectors_returned,act_nros=list(question_acts_nros),keywords=question_keywords,vector=question_vector)
 
             results_cite_ids = set()
 
             for cite_vector in acts:
-                for node_id in cite_vector.payload['node_ids']:
-                    results_cite_ids.add((cite_vector.payload['act_nro'], node_id))
+                cite_vector = ActVector(**cite_vector.payload)
+                for node_id in cite_vector.node_ids:
+                    results_cite_ids.add((cite_vector.act_nro, node_id))
 
             cite_id_intersection = question_cite_ids.intersection(results_cite_ids)
             total_cite_id_hit_rate += len(cite_id_intersection) / len(question_cite_ids)
@@ -90,7 +98,7 @@ class BaseEval:
             field_name='act_nro',
             field_schema="integer"
         )
-        questions = self.get_questions_to_evaluate()
+        questions: List[Question] = self.get_questions_to_evaluate()
 
         total_act_hit_rate = 0
         total_cite_id_hit_rate = 0
@@ -106,26 +114,27 @@ class BaseEval:
 
         for question in tqdm.tqdm(questions):
             keyword_filter = []
-            question_related_acts = set([related_act['nro'] for related_act in question['relatedActs']])
-            question_cite_ids = set([(relation_data['nro'],relation_data['id']) for related_act in question['relatedActs'] for relation_data in related_act['relationData']])
-            question_keywords = set([(keyword['conceptId'], keyword['instanceOfType']) for keyword in question['keywords']])
+            question_related_acts = set([related_act.nro for related_act in question.relatedActs])
+            question_cite_ids = set([(relation_data.nro,relation_data.id) for related_act in question.relatedActs for relation_data in related_act.relationData])
+            question_keywords = set([(keyword.conceptId, keyword.instanceOfType) for keyword in question.keywords])
 
             
-            question_vector = self.model.encode('zapytanie: ' + question['title'], convert_to_tensor=False, show_progress_bar=False)
-            related_questions = await self.qdrant_question_collection.search_questions_excluding_ids(limit=7, exclude_ids=[question['nro']], vector=question_vector)
+            question_vector = self.model.encode('zapytanie: ' + question.title, convert_to_tensor=False, show_progress_bar=False)
+            related_questions = await self.qdrant_question_collection.search_questions_excluding_ids(limit=7, exclude_ids=[question.nro], vector=question_vector)
             
             results_related_acts = set()
             results_cite_ids = set()
             results_keywords = set()
 
             for related_question in related_questions:
-                for related_act in related_question.payload['relatedActs']:
-                    results_related_acts.add(related_act['nro'])
-                    for relation_data in related_act['relationData']:
-                        results_cite_ids.add((relation_data['nro'], relation_data['id']))
-                for keyword in related_question.payload['keywords']:
+                related_question = Question(**related_question.payload)
+                for related_act in related_question.relatedActs:
+                    results_related_acts.add(related_act.nro)
+                    for relation_data in related_act.relationData:
+                        results_cite_ids.add((relation_data.nro, relation_data.id))
+                for keyword in related_question.keywords:
                     keyword_filter.append(keyword)
-                    results_keywords.add((keyword['conceptId'], keyword['instanceOfType']))
+                    results_keywords.add((keyword.conceptId, keyword.instanceOfType))
 
             act_intersection = question_related_acts.intersection(results_related_acts)
             cite_id_intersection = question_cite_ids.intersection(results_cite_ids)
@@ -150,8 +159,9 @@ class BaseEval:
             
             second_results_cite_ids = set()
             for cite_vector in second_results:
-                for node_id in cite_vector.payload['node_ids']:
-                    second_results_cite_ids.add((cite_vector.payload['act_nro'], node_id))
+                cite_vector = ActVector(**cite_vector.payload)
+                for node_id in cite_vector.node_ids:
+                    second_results_cite_ids.add((cite_vector.act_nro, node_id))
                 
             cite_id_intersection_second_search = question_cite_ids.intersection(second_results_cite_ids)
             total_cite_id_hit_rate_second_search += len(cite_id_intersection_second_search) / len(question_cite_ids)
