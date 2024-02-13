@@ -5,7 +5,7 @@
 
 1. [Overview](#overview)
 2. [Application Structure](#application-structure)
-3. [Data](#data)
+3. [Data Overview](#data-overview)
 4. [Retrieval Implementations](#retrieval-implementations)
 5. [Augmentation Methods](#augmentation-methods)
 6. [Evaluations](#evaluations)
@@ -33,3 +33,18 @@ The second database is a specialized vector database, designed to store embeddin
 At the heart of the interaction between these databases and the users is a FastAPI application. It facilitates the communication between the databases and the large language model. The model, serving as an AI agent, interprets user queries and fetches the required legal information from the databases.
 
 Finally, there is the evaluation component, where the system's accuracy is analyzed based on the precise citations provided by specialized lawyers in response to user questions.
+
+
+## Data Overview
+
+The dataset designed to enhance large language models consists of three primary components: Q&A sessions, where users pose legal queries; legal documents, which provide the basis for answers; and keywords that highlight specific sections of these documents. The diagram below illustrates how these elements interact.
+
+![Data Relations](./assets/data_relations.png)
+
+As depicted, each query is associated with a set of keywords and corresponding legal documents. The metadata for each document includes related sections, akin to paragraphs within the document. Keywords serve as connectors, linking questions to relevant sections of these documents.
+
+Leveraging the hierarchical structure of Polish legal documents, which can be depicted as a tree (where a depth-first search would recreate the entire document), I have developed a creative algorithm. The algorithm extracts subtrees from leaf nodes, generating semantically distinct and meaningful segments, as illustrated in the following diagram.
+
+![Chunking](./assets/chunking.png)
+
+This segmentation approach enables precise semantic searches, facilitates document reconstruction, and preserves inter-segment relationships, especially when the text length surpasses the limits imposed by RoBERTa encoder models. The dataset's structured interconnections enable the creation of advanced data retrieval strategies, further detailed in subsequent sections.
