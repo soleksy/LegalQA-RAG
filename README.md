@@ -48,3 +48,20 @@ Leveraging the hierarchical structure of Polish legal documents, which can be de
 ![Chunking](./assets/chunking.png)
 
 This segmentation approach enables precise semantic searches, facilitates document reconstruction, and preserves inter-segment relationships, especially when the text length surpasses the limits imposed by RoBERTa encoder models. The dataset's structured interconnections enable the creation of advanced data retrieval strategies, further detailed in subsequent sections.
+
+## Retrieval Implementations
+
+This chapter describes two distinct approaches for extracting data. The initial approach relies solely on the user's original query as the basis for conducting similarity searches.
+
+![Retrieval_1](./assets/retrieval_1.png)
+
+
+As illustrated in the diagram, the user's original query is essential for conducting searches. There are two primary methods: a straightforward search, where the query is converted into a vector and a similarity search is performed within the "qdrant" act collection, and a two-step search. In the latter, the query first identifies the most closely related questions, and then, utilizing the associated acts and keywords identified by legal professionals in the questions metadata, it refines the search to those specific acts and keywords. The most similar vectors are identified, and the documents are reconstructed hierarchically based on their node IDs, yielding the search results.
+
+The second approach involves multiple uses of a large language model (LLM) within the retrieval process.
+
+![Retrieval_2](./assets/retrieval_2.png)
+
+As depicted, incorporating LLMs as a reasoning mechanism enables more complex and refined search capabilities. Initially, the LLM can rephrase the original query to enhance search precision, given its expertise in specific domains. Furthermore, the LLM can generate multiple queries from the original, treating each as a distinct search to gather a broader range of results. These results are then merged and ranked using a technique known as reciprocal rank fusion. This method is advantageous as it explores various semantic contexts. The LLM can also refine the search by filtering through the metadata obtained from similar queries, selecting relevant keywords and acts while excluding those less likely to contain relevant legal information. Lastly, it can expand the query further, generating unique queries for each relevant act based on the metadata, enhancing the search's effectiveness.
+
+There are many trade-offs to be considered, the time for the user to receive the answer, compute and possible hallucinations. In the next chapters I will discuss augmentation methods used during the experiments as well as some evaluations.
