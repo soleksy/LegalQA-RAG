@@ -7,9 +7,8 @@
 2. [Application Structure](#application-structure)
 3. [Data Overview](#data-overview)
 4. [Retrieval Implementations](#retrieval-implementations)
-5. [Augmentation Methods](#augmentation-methods)
-6. [Evaluations](#evaluations)
-7. [Demo](#demo)
+5. [Evaluations](#evaluations)
+6. [Demo](#demo)
 
 
 ## Overview
@@ -65,3 +64,56 @@ The second approach involves multiple uses of a large language model (LLM) withi
 As depicted, incorporating LLMs as a reasoning mechanism enables more complex and refined search capabilities. Initially, the LLM can rephrase the original query to enhance search precision, given its expertise in specific domains. Furthermore, the LLM can generate multiple queries from the original, treating each as a distinct search to gather a broader range of results. These results are then merged and ranked using a technique known as reciprocal rank fusion. This method is advantageous as it explores various semantic contexts. The LLM can also refine the search by filtering through the metadata obtained from similar queries, selecting relevant keywords and acts while excluding those less likely to contain relevant legal information. Lastly, it can expand the query further, generating unique queries for each relevant act based on the metadata, enhancing the search's effectiveness.
 
 There are many trade-offs to be considered, the time for the user to receive the answer, compute and possible hallucinations. In the next chapters I will discuss augmentation methods used during the experiments as well as some evaluations.
+## Evaluations
+
+The assessment of the retrieval system is conducted using methods that exclude the LLM from the retrieval loop and includes two primary strategies.
+
+The **Naive Retrieval** strategy acts as a foundational comparison point, assessing the system's potential to extract pertinent information using increasingly detailed metadata.
+
+The **Two-Phase Retrieval** strategy begins by identifying the most closely related questions from a corpus of 250,000 Q&A pairs. It then refines the search by utilizing the metadata from these similar questions to narrow the search scope.
+
+For each search, the top 100 elements from the legal corpus are returned. In the two-phase retrieval, we initially search for the top 7 similar questions to minimize irrelevant data, which has proven to be the optimal number for this purpose.
+
+### Strategy 1: Naive Retrieval
+
+This approach tests the system's capability to directly fetch legal citations from an extensive corpus.
+
+| **Approach**                                      | **Description**                                                               | **Accuracy** |
+|---------------------------------------------------|-------------------------------------------------------------------------------|--------------|
+| **Search All Acts**                               | Searches all acts based on the user query and contrasts with lawyer-provided citations. | **41%**      |
+| **Filter by Lawyer's Acts**                       | Filters search results using only the acts cited by the lawyer, along with the initial query. | **64%**      |
+| **Filter by Lawyer's Acts and Keywords**          | Applies both keywords and acts cited by the lawyer as metadata filters.       | **72%**      |
+
+The maximum theoretical accuracy observed is 72%, achieved in scenarios where searches are precisely filtered through the metadata cited by the lawyer.
+
+### Strategy 2: Two-Phase Retrieval
+
+This strategy incorporates an initial phase of pinpointing questions similar to the user's query to refine search criteria, followed by a secondary phase that utilizes these refined criteria to improve citation retrieval efficiency.
+
+#### First Phase Results of Two-Phase Retrieval
+
+The initial phase involves analyzing questions similar to the user's query to extract relevant acts and keywords, yielding the following rounded results:
+
+| **Metric**                                | **Result**                           |
+|-------------------------------------------|--------------------------------------|
+| **Total Act Hit Rate**                    | **90%**                              |
+| **Total Keyword Hit Rate**                | **78%**                              |
+| **Average Acts per First Search**         | **5**                                |
+| **Average Keywords per First Search**     | **19**                               |
+
+#### Second Phase Accuracy
+
+The subsequent phase capitalizes on insights from the initial phase to improve retrieval accuracy through metadata filtering.
+
+| **Description**                                            | **Accuracy** |
+|------------------------------------------------------------|--------------|
+| **Using only extracted acts as metadata filters**          | **49%**      |
+| **Applying extracted acts and keywords as metadata filters** | **52%**    |
+
+By selecting the top 100 elements and leveraging metadata, I managed to enhance accuracy from **41%** to **52%** simply by incorporating a classification step. It's worth noting that this result could potentially be improved further through various strategies, including hybrid searches with SPLADE embeddings, reranking, fine-tuning the embedding model, and, notably, incorporating the LLM into the loop.
+
+Also, it is worth to mention that top 100 elements equates to about **10 000** tokens and in future where the context window size is not a limiting factor accuracy can be improved by simply retrieving more and more elements. 
+
+Integrating the LLM would allow for multiple queries to vector databases based on the initial query, enabling the LLM to refine metadata filtering and create a tailored set of queries for each document to retrieve the most relevant act elements.
+
+However, such an evaluation would entail significant resources; hence, this marks the current endpoint of my assessment.
