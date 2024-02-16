@@ -10,9 +10,9 @@ import tiktoken
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, Depends, HTTPException, status, Request
+from starlette.responses import RedirectResponse
 
 from typing import Dict, List
-from typing_extensions import TypedDict
 from contextlib import asynccontextmanager
 from sentence_transformers import SentenceTransformer
 
@@ -23,18 +23,20 @@ from qdrantdb.collections.qdrant_act_collection import QdrantActCollection
 from models.datamodels.question import Question
 from models.datamodels.act_vector import ActVector
 from models.datamodels.leaf_act import LeafAct
+from models.api_models import Keyword, Query
 
 encoding = tiktoken.get_encoding('cl100k_base')
 get_openai_tokens = lambda text: len(encoding.encode(text))
 
-
 dotenv.load_dotenv()
 
 STATIC_API_KEY = os.getenv("STATIC_API_KEY")
+REDIRECT_URL = os.getenv("REDIRECT_URL")
 
-class Query(TypedDict):
-    nro: str
-    queries: List[str]
+def get_tokens_from_json(json_output: dict) -> int:
+    json_str = json.dumps(json_output, ensure_ascii=False)
+    logging.info(f"Total tokens: {get_openai_tokens(json_str)}")
+    return get_openai_tokens(json_str)
 
 async def get_qdrant_act_collection():
     act_collection = await QdrantActCollection.create()
@@ -79,15 +81,24 @@ def validate_api_key(request: Request):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key"
         )
+    
+@app.get("/")
+async def read_root():
+    return RedirectResponse(url=REDIRECT_URL)
+    
 
 @app.get("/acts/search")
-async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_key)) -> List[Dict]:
+async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_key)) -> Dict[str, List[Dict]]:
     if valid:
         vector = functions['model'].encode('zapytanie: ' + query, convert_to_tensor=False, show_progress_bar=False)
-        questions = await functions["qdrant_question_collection"].search_questions(limit=20, vector=vector)
+        questions = await functions["qdrant_question_collection"].search_questions(limit=60, vector=vector)
 
         acts = set()
-        acts_to_return = []
+        keywords_set = set()
+        acts_to_return = {
+            'acts' : [],
+            'keywords' : []
+        }
 
         for question in questions:
             question = Question(**question.payload)
@@ -95,13 +106,22 @@ async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_k
             for related_act in question.relatedActs:
                 if related_act.nro not in acts:
                     acts.add(related_act.nro)
-                    if len(acts_to_return) < 5:
-                        acts_to_return.append({
-                            "nro": related_act.nro,
-                            "title": related_act.title
-                        })
-                    else:
-                        break
+                    acts_to_return['acts'].append({
+                        "nro": related_act.nro,
+                        "title": related_act.title
+                    })
+
+            for keyword in question.keywords:
+                if (keyword.conceptId , keyword.instanceOfType) not in keywords_set:
+                    keywords_set.add((keyword.conceptId , keyword.instanceOfType))
+                    acts_to_return['keywords'].append({
+                        "label": keyword.label,
+                        "conceptId": keyword.conceptId,
+                        "instanceOfType": keyword.instanceOfType
+                    })
+
+
+        get_tokens_from_json(acts_to_return)
 
         return acts_to_return
 
@@ -110,26 +130,24 @@ async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_k
     
 
 @app.post("/acts/retrieve")
-async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depends(validate_api_key)) -> List[Dict]:
+async def retrieve_act_parts(queries: List[Query], keywords: List[Keyword], valid: bool = Depends(validate_api_key)) -> List[Dict]:
 
     if valid:
-        queries = queries['queries']
         nros_in_order = []
         queries_in_order = []
         encode_in_order = []
 
         for query in queries:
-            nros_in_order.append(int(query['nro']))
-            for q in query['queries']:
-                encode_in_order.append('zapytanie: ' + q)
-                queries_in_order.append(q)
+            nros_in_order.append(int(query.nro))
+            encode_in_order.append('zapytanie: ' + query.query)
+            queries_in_order.append(query.query)
 
         # Get vectors for each query
         vectors = functions['model'].encode(encode_in_order, convert_to_tensor=False, show_progress_bar=False) 
         
         search_tasks = []
         for vector, nro in zip(vectors, nros_in_order):
-            search_tasks.append(functions["qdrant_act_collection"].search_acts_filtered(limit=5, act_nros=[nro], vector=vector))
+            search_tasks.append(functions["qdrant_act_collection"].search_acts_keyword_filtered(limit=10, act_nros=[nro] , keywords=keywords, vector=vector))
 
         # Get act parts for each query
         act_parts = await asyncio.gather(*search_tasks)
@@ -169,6 +187,8 @@ async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depen
                 "data": elements_to_return
             })
 
+        get_tokens_from_json(to_return)
+
         return to_return
 
     else:
@@ -180,14 +200,14 @@ async def get_legal_information(query: str, valid: bool = Depends(validate_api_k
         acts = set()
         
         vector = functions['model'].encode('zapytanie: '+query, convert_to_tensor=False, show_progress_bar=False)
-        questions = await functions["qdrant_question_collection"].search_questions(limit=5, vector=vector)
+        questions = await functions["qdrant_question_collection"].search_questions(limit=60, vector=vector)
 
         for question in questions:
             question = Question(**question.payload)
             for related_act in question.relatedActs:
                 acts.add(related_act.nro)
         
-        act_parts = await functions['qdrant_act_collection'].search_acts_filtered(limit=60, act_nros=list(acts), vector=vector)
+        act_parts = await functions['qdrant_act_collection'].search_acts_filtered(limit=100, act_nros=list(acts), vector=vector)
         leaf_acts = await functions['mongo_leaf_act_collection'].get_leaf_acts(nros=list(acts))
 
         
@@ -214,7 +234,7 @@ async def get_legal_information(query: str, valid: bool = Depends(validate_api_k
             for id in id_set:
                 if id[0] == nro:
                     curr_elements.add(id[1])
-            
+
             act_elements = leaf_act_map[nro].reconstruct
             elements_to_return = []
             for element in act_elements:
@@ -230,10 +250,8 @@ async def get_legal_information(query: str, valid: bool = Depends(validate_api_k
 
             to_return.append(curr_act)
 
-        json_str = json.dumps(to_return, ensure_ascii=False)
-        token_count = get_openai_tokens(json_str)
-    
-        logging.info(f"Total tokens: {token_count}")
+        get_tokens_from_json(to_return)
+
         return to_return
     else:
         return {"error": "Invalid API Key"}
