@@ -4,7 +4,7 @@ from qdrant_client import models
 from qdrant_client.models import Record 
 
 from models.datamodels.act_vector import ActVector
-from models.datamodels.keyword import Keyword
+from models.api_models import Keyword
 from qdrantdb.qdrant_base_database import QdrantBaseDatabase
 
 
