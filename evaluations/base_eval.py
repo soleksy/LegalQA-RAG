@@ -60,24 +60,31 @@ class BaseEval:
         return self.randomize_questions(with_citations)
 
     def randomize_questions(self, questions: list[Question]) -> List[Question]:
-        ten_percent_count = len(questions) // 80 
+        batch_size = len(questions) // 20
         
-        if ten_percent_count == 0 and questions:
-            ten_percent_count = 1
+        if batch_size == 0 and questions:
+            batch_size = 1
 
-        return random.sample(questions, ten_percent_count)
+        return random.sample(questions, batch_size)
     
     async def evaluate_acts_only(self) -> None:
+
+        await self.qdrant_act_collection.client.create_payload_index(
+            collection_name=self.qdrant_act_collection.collection_name,
+            field_name='act_nro',
+            field_schema="integer"
+        )
+        
         questions: List[Question] = self.get_questions_to_evaluate()
         total_cite_id_hit_rate = 0
-        act_vectors_returned = 10
+        act_vectors_returned = 100
         for question in tqdm.tqdm(questions):
             question_vector = self.model.encode('zapytanie: ' + question.title, convert_to_tensor=False, show_progress_bar=False)
             question_cite_ids = set([(relation_data.nro ,relation_data.id) for related_act in question.relatedActs for relation_data in related_act.relationData])
             question_acts_nros = set([related_act.nro for related_act in question.relatedActs])
             question_keywords = [keyword for keyword in question.keywords]
 
-            acts = await self.qdrant_act_collection.search_acts_keyword_filtered(limit=act_vectors_returned,act_nros=list(question_acts_nros),keywords=question_keywords,vector=question_vector)
+            acts = await self.qdrant_act_collection.search_acts_keyword_filtered(limit=act_vectors_returned,act_nros=question_acts_nros,keywords=question_keywords,vector=question_vector)
 
             results_cite_ids = set()
 
@@ -110,7 +117,6 @@ class BaseEval:
 
         act_vectors_returned = 100
         total_cite_id_hit_rate_second_search = 0
-        
 
         for question in tqdm.tqdm(questions):
             keyword_filter = []
@@ -158,6 +164,7 @@ class BaseEval:
                 second_results = await self.qdrant_act_collection.search_acts_filtered(limit=act_vectors_returned, vector=question_vector, act_nros=list(results_related_acts))
             
             second_results_cite_ids = set()
+
             for cite_vector in second_results:
                 cite_vector = ActVector(**cite_vector.payload)
                 for node_id in cite_vector.node_ids:
@@ -165,7 +172,6 @@ class BaseEval:
                 
             cite_id_intersection_second_search = question_cite_ids.intersection(second_results_cite_ids)
             total_cite_id_hit_rate_second_search += len(cite_id_intersection_second_search) / len(question_cite_ids)
-                    
 
 
         logger.warning(f"********FIRST SEARCH********")
