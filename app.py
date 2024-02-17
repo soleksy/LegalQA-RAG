@@ -23,7 +23,7 @@ from qdrantdb.collections.qdrant_act_collection import QdrantActCollection
 from models.datamodels.question import Question
 from models.datamodels.act_vector import ActVector
 from models.datamodels.leaf_act import LeafAct
-from models.api_models import Keyword, Query
+from models.api_models import  Query , QuestionQuery
 
 encoding = tiktoken.get_encoding('cl100k_base')
 get_openai_tokens = lambda text: len(encoding.encode(text))
@@ -87,42 +87,36 @@ async def read_root():
     return RedirectResponse(url=REDIRECT_URL)
     
 
-@app.get("/acts/search")
-async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_key)) -> Dict[str, List[Dict]]:
+@app.post("/acts/search")
+async def get_recommended_acts(questions: Dict[str,List[QuestionQuery]] , valid: bool = Depends(validate_api_key)) -> Dict[str, List[Dict]]:
     if valid:
-        vector = functions['model'].encode('zapytanie: ' + query, convert_to_tensor=False, show_progress_bar=False)
-        questions = await functions["qdrant_question_collection"].search_questions(limit=60, vector=vector)
+        queries_in_order = []
+        for query in questions['questions']:
+            queries_in_order.append('zapytanie: ' + query.query)
+
+        vectors = functions['model'].encode(queries_in_order, convert_to_tensor=False, show_progress_bar=False)
+
+        tasks = [functions["qdrant_question_collection"].search_questions(limit=40, vector=vector) for vector in vectors]
+        questions = await asyncio.gather(*tasks)
 
         acts = set()
-        keywords_set = set()
         acts_to_return = {
-            'acts' : [],
-            'keywords' : []
+            'acts' : []
         }
 
-        for question in questions:
-            question = Question(**question.payload)
-
-            for related_act in question.relatedActs:
-                if related_act.nro not in acts:
-                    acts.add(related_act.nro)
-                    acts_to_return['acts'].append({
-                        "nro": related_act.nro,
-                        "title": related_act.title
-                    })
-
-            for keyword in question.keywords:
-                if (keyword.conceptId , keyword.instanceOfType) not in keywords_set:
-                    keywords_set.add((keyword.conceptId , keyword.instanceOfType))
-                    acts_to_return['keywords'].append({
-                        "label": keyword.label,
-                        "conceptId": keyword.conceptId,
-                        "instanceOfType": keyword.instanceOfType
-                    })
+        for task in questions:
+            for question in task:
+                question = Question(**question.payload)
+                for related_act in question.relatedActs:
+                    if related_act.nro not in acts:
+                        acts.add(related_act.nro)
+                        acts_to_return['acts'].append({
+                            "nro": related_act.nro,
+                            "title": related_act.title
+                        })
 
 
         get_tokens_from_json(acts_to_return)
-
         return acts_to_return
 
     else:
@@ -130,24 +124,26 @@ async def get_recommended_acts(query: str , valid: bool = Depends(validate_api_k
     
 
 @app.post("/acts/retrieve")
-async def retrieve_act_parts(queries: List[Query], keywords: List[Keyword], valid: bool = Depends(validate_api_key)) -> List[Dict]:
+async def retrieve_act_parts(queries: Dict[str,List[Query]], valid: bool = Depends(validate_api_key)) -> List[Dict]:
 
     if valid:
         nros_in_order = []
         queries_in_order = []
         encode_in_order = []
 
-        for query in queries:
+        for query in queries['queries']:
             nros_in_order.append(int(query.nro))
             encode_in_order.append('zapytanie: ' + query.query)
             queries_in_order.append(query.query)
 
         # Get vectors for each query
         vectors = functions['model'].encode(encode_in_order, convert_to_tensor=False, show_progress_bar=False) 
-        
+
+        limit_per_query = 100//len(queries['queries'])
+
         search_tasks = []
         for vector, nro in zip(vectors, nros_in_order):
-            search_tasks.append(functions["qdrant_act_collection"].search_acts_keyword_filtered(limit=10, act_nros=[nro] , keywords=keywords, vector=vector))
+            search_tasks.append(functions["qdrant_act_collection"].search_acts_filtered(limit=limit_per_query, act_nros=[nro], vector=vector))
 
         # Get act parts for each query
         act_parts = await asyncio.gather(*search_tasks)
