@@ -130,9 +130,8 @@ A visual representation of this architecture is provided below:
 ![Demo_Diagram_1](./assets/demo_1.png)
 
 To better illustrate this interaction, a video demonstration is available:
-<video src="assets/demo_video_1.mp4" width="1918" height="400" controls>
-  Your browser does not support the video tag.
-</video>
+
+https://github.com/soleksy/RAG/assets/60203776/3530c175-246f-49eb-918d-cde294cc8229
 
 ### Second Demo: Two-Step Interaction with Complex Reasoning
 The second demo showcases a more sophisticated architecture involving a two-step interaction process that facilitates complex reasoning. Initially, the LLM analyzes the general components of the user's question to formulate appropriate queries for document retrieval. Subsequently, it generates custom filters for each document, enabling targeted queries. These queries are processed in batches asynchronously, ensuring efficient retrieval of relevant content.
@@ -142,6 +141,7 @@ The architecture of this complex interaction is depicted below:
 
 
 A video demonstration of this interaction is also provided for a clearer understanding:
-<video src="assets/demo_video_2.mp4" width="1918" height="400" controls>
-  Your browser does not support the video tag.
-</video>
+
+https://github.com/soleksy/RAG/assets/60203776/796a140c-2da0-460e-9766-4cccd6d91812
+
+
