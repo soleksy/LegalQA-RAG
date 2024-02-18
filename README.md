@@ -117,3 +117,31 @@ Also, it is worth to mention that top 100 elements equates to about **10 000** t
 Integrating the LLM would allow for multiple queries to vector databases based on the initial query, enabling the LLM to refine metadata filtering and create a tailored set of queries for each document to retrieve the most relevant act elements.
 
 However, such an evaluation would entail significant resources; hence, this marks the current endpoint of my assessment.
+
+
+## Demo
+
+This section presents two demo scenarios showcasing different architectures.
+
+### First Demo: Single-Shot Search
+In the initial demo, I employ a straightforward single-shot search mechanism. The process begins with the user's initial query, then an LLM triggers a single API call. The application then autonomously handles the retrieval process, searching through similar questions, applying relevant filters to find relevant act chunks and subsequently delivering the pertinent information back to the LLM.
+
+A visual representation of this architecture is provided below:
+![Demo_Diagram_1](./assets/demo_1.png)
+
+To better illustrate this interaction, a video demonstration is available:
+<video src="assets/demo_video_1.mp4" width="1918" height="400" controls>
+  Your browser does not support the video tag.
+</video>
+
+### Second Demo: Two-Step Interaction with Complex Reasoning
+The second demo showcases a more sophisticated architecture involving a two-step interaction process that facilitates complex reasoning. Initially, the LLM analyzes the general components of the user's question to formulate appropriate queries for document retrieval. Subsequently, it generates custom filters for each document, enabling targeted queries. These queries are processed in batches asynchronously, ensuring efficient retrieval of relevant content.
+
+The architecture of this complex interaction is depicted below:
+![Demo_Diagram_1](./assets/demo_2.png)
+
+
+A video demonstration of this interaction is also provided for a clearer understanding:
+<video src="assets/demo_video_2.mp4" width="1918" height="400" controls>
+  Your browser does not support the video tag.
+</video>
