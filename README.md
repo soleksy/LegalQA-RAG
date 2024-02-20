@@ -146,3 +146,13 @@ https://github.com/soleksy/RAG/assets/60203776/796a140c-2da0-460e-9766-4cccd6d91
 
 
 ## Conclusions
+
+In this project, I explored the integration of Large Language Models (LLMs) within a legal question-answering framework, demonstrating their potential to enhance legal research and consultation. Although the outcomes are promising, they underscore the necessity for further refinement before these systems can be reliably deployed in professional legal settings.
+
+One significant limitation is the propensity of LLMs to produce "hallucinations," or generate information that may not be factually accurate or contextually relevant. This characteristic poses a critical challenge, especially in the legal domain where precision and reliability are paramount.
+
+Despite these hurdles, the project serves as a foundational step toward harnessing the capabilities of LLMs for legal applications. It highlights the importance of ongoing development in areas such as data curation, model training, and the creation of domain-specific encoders to address the unique requirements of legal data processing.
+
+Ethical considerations and the potential for misuse prevent the public release of the dataset and the operational deployment of the application in its current form. Nonetheless, the insights gained from this deep dive are valuable for the future development of AI-assisted legal tools.
+
+The project illustrates both the potential and the challenges of applying state-of-the-art LLMs to specialized fields such as law. As I move forward, the focus will be on enhancing data preparation techniques, developing tailored models, and continually evaluating the ethical implications of deploying AI in sensitive domains.
