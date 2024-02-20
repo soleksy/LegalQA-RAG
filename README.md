@@ -9,7 +9,7 @@
 4. [Retrieval Implementations](#retrieval-implementations)
 5. [Evaluations](#evaluations)
 6. [Demo](#demo)
-
+7. [Conclusions](#conclusions)
 
 ## Overview
 
@@ -145,3 +145,4 @@ A video demonstration of this interaction is also provided for a clearer underst
 https://github.com/soleksy/RAG/assets/60203776/796a140c-2da0-460e-9766-4cccd6d91812
 
 
+## Conclusions
