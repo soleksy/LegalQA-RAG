@@ -13,8 +13,6 @@
 
 ## Overview
 
-Since the discovery of large language models' remarkable ability to perform logical reasoning, there has been a debate among researchers and professionals regarding the potential for these models to replace tasks currently performed by human experts.
-
 This repository hosts an implementation of a Polish AI legal assistant that uses legal data to perform QA over legal acts, utilizing an extensive dataset of questions and answers, keywords, precise citations, and legal acts. 
 
 It incorporates unique chunking strategies for statutory law through tree representation, alongside state-of-the-art transformers for semantic search in the Polish language.
